@@ -497,7 +497,19 @@ function bindClock() {
 function ensureStarted() { const d = day(); if (!d.startedAt) { d.startedAt = Date.now(); saveDay(); const c = $('#clock'); if (c) { c.innerHTML = clockInner(d); bindClock(); } } }
 
 /* ---------- cube ---------- */
-const cube = { phase: 'idle', start: 0, raf: 0, holdTimer: 0, scramble: '' };
+const cube = { phase: 'idle', start: 0, raf: 0, holdTimer: 0, scramble: '', history: [], idx: -1 };
+function nextScramble() {
+  if (cube.idx < cube.history.length - 1) cube.idx++;
+  else { cube.history.push(genScramble()); if (cube.history.length > 50) cube.history.shift(); cube.idx = cube.history.length - 1; }
+  cube.scramble = cube.history[cube.idx];
+}
+function prevScramble() { if (cube.idx > 0) { cube.idx--; cube.scramble = cube.history[cube.idx]; } }
+function paintScramble() {
+  const s = $('#scramble'); if (s) s.textContent = cube.scramble;
+  const p = $('#prevScramble'); if (p) p.disabled = cube.idx <= 0;
+  const n = $('#newScramble'); if (n) n.textContent = cube.idx < cube.history.length - 1 ? 'Next scramble' : 'New scramble';
+  const l = $('#scrLabel'); if (l) l.textContent = cube.idx < cube.history.length - 1 ? `Scramble · ${cube.history.length - 1 - cube.idx} back` : 'Scramble';
+}
 function genScramble(len = 20) {
   const faces = ['U', 'D', 'L', 'R', 'F', 'B'], axis = {U: 0, D: 0, L: 1, R: 1, F: 2, B: 2}, mods = ['', "'", '2'];
   const out = []; let last = null, prev = null;
@@ -514,12 +526,13 @@ function cubeStats(solves) {
   return {best: Math.min(...solves), mean: solves.reduce((a, b) => a + b, 0) / solves.length};
 }
 function cubeBody(d) {
-  if (!cube.scramble) cube.scramble = genScramble();
+  if (!cube.scramble) nextScramble();
+  const back = cube.history.length - 1 - cube.idx;
   const st = cubeStats(d.cube.solves);
   const allBest = Math.min(...realDays().flatMap(x => x.cube?.solves || []), Infinity);
   return `
     <p class="muted" style="margin:0">${S.settings.cubeTarget} solves to wake up your hands. Hold <span class="mono">Space</span> (or press and hold the pad) until it turns green, release to start, press any key or tap to stop.</p>
-    <div><div class="label">Scramble</div><div class="row" style="gap:8px;margin-top:4px"><div class="scramble" style="flex:1" id="scramble">${esc(cube.scramble)}</div><button class="btn small" id="newScramble">New scramble</button></div></div>
+    <div><div class="label" id="scrLabel">${back ? `Scramble · ${back} back` : 'Scramble'}</div><div class="row" style="gap:8px;margin-top:4px"><div class="scramble" style="flex:1 1 260px" id="scramble">${esc(cube.scramble)}</div><div class="row" style="gap:6px"><button class="btn small" id="prevScramble" ${cube.idx <= 0 ? 'disabled' : ''} aria-label="Previous scramble">← Previous</button><button class="btn small" id="newScramble">${back ? 'Next scramble' : 'New scramble'}</button></div></div></div>
     <button class="pad" id="pad" data-p="${cube.phase}" aria-label="Cube timer"><span class="num" id="padNum">${cube.phase === 'idle' && d.cube.solves.length ? fmtMs(d.cube.solves[d.cube.solves.length - 1]) : '0.00'}</span></button>
     <div class="stats">
       <div class="stat"><div class="label">Best today</div><span class="num">${fmtMs(st.best)}</span></div>
@@ -548,7 +561,7 @@ function cubeUp() {
 function cubeStop() {
   const ms = Math.round(performance.now() - cube.start);
   cancelAnimationFrame(cube.raf);
-  cube.phase = 'idle'; cube.scramble = genScramble();
+  cube.phase = 'idle'; nextScramble();
   const d = day(); d.cube.solves.push(ms);
   if (d.cube.solves.length >= S.settings.cubeTarget && !d.done.cube) { d.done.cube = true; }
   saveDay(); refreshStep('cube');
@@ -561,7 +574,8 @@ function bindCube(d) {
   pad.addEventListener('pointerup', e => { e.preventDefault(); cubeUp(); });
   pad.addEventListener('pointerleave', () => { if (cube.phase === 'holding' || cube.phase === 'ready') { clearTimeout(cube.holdTimer); cube.phase = 'idle'; setPad(); } });
   pad.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') e.preventDefault(); });
-  $('#newScramble').onclick = () => { cube.scramble = genScramble(); $('#scramble').textContent = cube.scramble; };
+  $('#newScramble').onclick = () => { nextScramble(); paintScramble(); };
+  $('#prevScramble').onclick = () => { prevScramble(); paintScramble(); };
   $$('[data-del]').forEach(b => b.onclick = () => { const dd = day(); dd.cube.solves.splice(+b.dataset.del, 1); saveDay(); refreshStep('cube'); });
   bindDone($('#body-cube'));
 }
