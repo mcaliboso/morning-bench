@@ -56,6 +56,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sync[data-s="synced"] i{background:var(--good)}
 .sync[data-s="error"] i,.sync[data-s="slow"] i{background:var(--warm)}
 nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.acct{font-size:.8rem;font-weight:500;text-decoration:none;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:999px;padding:2px 10px;max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);border-radius:var(--r);padding:12px 14px;margin-bottom:16px}
+.banner p{margin:0;flex:1 1 260px}
+.gbtn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:500;cursor:pointer;display:inline-flex;gap:10px;align-items:center}
+.gbtn svg{width:18px;height:18px}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.8rem}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
 nav.tabs a{text-decoration:none;color:var(--muted);padding:6px 12px;border-radius:999px;font-weight:500;font-size:.9rem}
 nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--bg)}
 
@@ -66,7 +73,7 @@ nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--bg)}
 .btn.ghost{background:transparent}
 .btn.small{padding:4px 10px;font-size:.85rem}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-input[type=text],input[type=url],input[type=number],select,textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+input[type=text],input[type=url],input[type=number],input[type=email],input[type=password],select,textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
 textarea{resize:vertical;min-height:110px;line-height:1.5}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -150,6 +157,7 @@ textarea{resize:vertical;min-height:110px;line-height:1.5}
 details summary{cursor:pointer;font-weight:500;color:var(--accent)}
 .refans{white-space:pre-wrap;margin-top:8px;font-size:.92rem;max-width:70ch}
 .spark{width:140px;height:28px;display:block}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:20;max-width:calc(100% - 32px)}
 
 /* progress */
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
@@ -191,7 +199,7 @@ td.num{white-space:nowrap}
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><b>Morning Bench</b><span class="sync" id="sync" data-s="local"><i></i><span>Saved in this browser</span></span></div>
+    <div class="brand"><b>Morning Bench</b><span class="sync" id="sync" data-s="local"><i></i><span>Saved in this browser</span></span><a href="#setup" id="acct" class="acct" hidden></a></div>
     <nav class="tabs" aria-label="Sections">
       <a href="#today" data-tab="today">Today</a>
       <a href="#progress" data-tab="progress">Progress</a>
@@ -381,12 +389,15 @@ function mergeDeep(base, over) {
   return out;
 }
 const LS_KEY = 'morning-bench.v1';
+let lsKey = LS_KEY; // signed-in users get their own cached copy: LS_KEY + '.cloud.' + userId
 const S = { days: {}, settings: clone(DEFAULTS) };
-try {
-  const j = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
-  if (j) { S.days = j.days || {}; S.settings = mergeDeep(DEFAULTS, j.settings || {}); }
-} catch (e) {}
-function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} }
+function readStore(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
+function loadLocal() {
+  const j = readStore(lsKey);
+  S.days = (j && j.days) || {}; S.settings = mergeDeep(DEFAULTS, (j && j.settings) || {});
+}
+loadLocal();
+function lsSave() { try { localStorage.setItem(lsKey, JSON.stringify(S)); } catch (e) {} }
 function blankDay(k) { return { date: k, cube: {solves: []}, arith: {rounds: []}, leet: {}, drill: {}, nback: {rounds: []}, done: {} }; }
 function day(k = todayKey()) {
   if (!S.days[k]) S.days[k] = blankDay(k);
@@ -397,15 +408,16 @@ function day(k = todayKey()) {
 const realDays = () => Object.values(S.days).filter(d => d && d.updatedAt).sort((a, b) => a.date < b.date ? -1 : 1);
 
 let db = null;
+let remote = null; // {write(path, data)}: the artifact db, or Supabase when signed in
 const dirty = new Set(), writing = new Set(), timers = {};
 function setSync(s) {
   const el = $('#sync'); if (!el) return;
   el.dataset.s = s;
-  el.lastElementChild.textContent = ({local: 'Saved in this browser', connecting: 'Connecting…', synced: 'Saved', slow: 'Saved here; sync is slow', error: 'Saved here; sync failed'})[s] || s;
+  el.lastElementChild.textContent = ({local: 'Saved in this browser', connecting: 'Connecting…', synced: cloud.uid ? 'Saved to your account' : 'Saved', slow: 'Saved here; sync is slow', error: 'Saved here; sync failed'})[s] || s;
 }
 function persist(path) {
   lsSave();
-  if (!db) return;
+  if (!remote) return;
   dirty.add(path);
   clearTimeout(timers[path]);
   timers[path] = setTimeout(() => flush(path), 700);
@@ -414,7 +426,7 @@ async function flush(path) {
   if (writing.has(path) || !dirty.has(path)) return;
   dirty.delete(path); writing.add(path);
   const data = path === 'config/settings' ? S.settings : S.days[path.split('/')[1]];
-  try { await db.doc(path).set(clone(data)); setSync('synced'); }
+  try { await remote.write(path, clone(data)); setSync('synced'); }
   catch (e) {
     setSync('error');
     if (e && e.code === 'unavailable') setTimeout(() => { dirty.add(path); flush(path); }, 1500 + Math.random() * 1500);
@@ -431,7 +443,7 @@ async function initDb() {
   let d = null;
   try { d = await window.claude.use('db'); } catch (e) { d = null; }
   if (!d) return;
-  db = d; setSync('connecting');
+  db = d; remote = {write: (path, data) => db.doc(path).set(data)}; setSync('connecting');
   let migrated = false;
   const slow = setTimeout(() => setSync('slow'), 10000);
   db.collection('sessions').onSnapshot(snap => {
@@ -496,7 +508,7 @@ function renderToday(app) {
   let t = 0;
   const ranges = STEPS.map(s => { const a = t; t += s.mins(); return [a, t]; });
   const doneCount = STEPS.filter(s => d.done[s.id]).length;
-  app.innerHTML = `
+  app.innerHTML = `${importBanner()}
     <div class="today-head">
       <div>
         <div class="label">${esc(dk.toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric'}))}</div>
@@ -523,6 +535,7 @@ function renderToday(app) {
     h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
   bindClock();
+  bindImportBanner(app);
   if (openStep) bindStep(openStep, d);
 }
 function stepChip(id, d) {
@@ -1250,12 +1263,179 @@ function endNback(aborted) {
   renderNback($('#app'));
 }
 
+/* ---------- ACCOUNTS (Supabase; standalone copies only) ---------- */
+// config.js next to the page sets window.MORNING_BENCH_CONFIG = {supabaseUrl, supabaseAnonKey}.
+// The anon/publishable key is meant to be public; row-level security limits every row to its owner.
+const cloud = { sb: null, uid: undefined, user: null, configured: false, status: '', statusOk: false, recovery: false, importOffer: 0, busy: false };
+const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+function loadScript(src) {
+  return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+}
+async function initCloud() {
+  if (window.claude) return; // inside Claude: the artifact database handles sync
+  try { await loadScript('config.js'); } catch (e) { return; }
+  const cfg = window.MORNING_BENCH_CONFIG || {};
+  if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return;
+  cloud.configured = true; paintAcct();
+  try { await loadScript(SUPABASE_JS); } catch (e) { cloud.status = 'Couldn’t load sign-in. Check your connection and reload.'; softRender(); return; }
+  cloud.sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce'}});
+  cloud.sb.auth.onAuthStateChange((ev, session) => {
+    if (ev === 'PASSWORD_RECOVERY') { cloud.recovery = true; if (location.hash !== '#setup') location.hash = '#setup'; else render(); }
+    const u = session ? session.user : null;
+    setTimeout(() => onUser(u), 0);
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && cloud.uid) pullCloud(); });
+}
+function paintAcct() {
+  const a = $('#acct'); if (!a) return;
+  a.hidden = !cloud.configured;
+  a.textContent = cloud.user ? (cloud.user.email || 'Account') : 'Sign in';
+  a.title = cloud.user ? 'Signed in. Manage your account in Setup.' : 'Sign in to save progress across devices';
+}
+async function onUser(u) {
+  const uid = u ? u.id : null;
+  cloud.user = u;
+  if (uid === cloud.uid) { paintAcct(); return; }
+  cloud.uid = uid; cloud.importOffer = 0;
+  dirty.clear();
+  if (!uid) { remote = null; lsKey = LS_KEY; loadLocal(); setSync('local'); paintAcct(); render(); return; }
+  if (/[?&]code=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
+  lsKey = LS_KEY + '.cloud.' + uid; loadLocal();
+  remote = {write: supaWrite};
+  setSync('connecting'); paintAcct(); render();
+  await pullCloud();
+}
+async function supaWrite(path, data) {
+  const uid = cloud.uid; if (!uid) return;
+  if (path === 'config/settings') {
+    const {error} = await cloud.sb.from('settings').upsert({user_id: uid, data});
+    if (error) throw error; return;
+  }
+  const date = path.split('/')[1];
+  const {error} = await cloud.sb.from('sessions').upsert({user_id: uid, date, data, updated_at: data.updatedAt || Date.now()});
+  if (error) throw error;
+}
+async function pullCloud() {
+  const uid = cloud.uid; if (!uid || !cloud.sb) return;
+  const [a, b] = await Promise.all([
+    cloud.sb.from('sessions').select('date,data,updated_at').eq('user_id', uid),
+    cloud.sb.from('settings').select('data').eq('user_id', uid).maybeSingle()
+  ]);
+  if (uid !== cloud.uid) return;
+  if (a.error || b.error) { setSync('error'); cloud.status = 'Couldn’t load your saved progress: ' + (a.error || b.error).message; return; }
+  const seen = new Set(); let changed = false;
+  (a.data || []).forEach(row => {
+    const k = row.date; seen.add(k);
+    if (dirty.has('sessions/' + k) || writing.has('sessions/' + k)) return;
+    const local = S.days[k];
+    if (local && (local.updatedAt || 0) > (row.updated_at || 0)) { persist('sessions/' + k); return; }
+    if (!local || (local.updatedAt || 0) !== (row.updated_at || 0)) { S.days[k] = row.data; changed = true; }
+  });
+  for (const k in S.days) if (!seen.has(k) && S.days[k].updatedAt) persist('sessions/' + k);
+  if (b.data && b.data.data && !dirty.has('config/settings')) { S.settings = mergeDeep(DEFAULTS, b.data.data); changed = true; }
+  lsSave(); setSync('synced');
+  const localDays = Object.values(((readStore(LS_KEY) || {}).days) || {}).filter(d => d && d.updatedAt);
+  const offered = lsGet('morning-bench.imported.' + uid);
+  if (localDays.length && !offered) { cloud.importOffer = localDays.length; changed = true; }
+  if (changed) softRender();
+}
+function importLocal() {
+  const localDays = ((readStore(LS_KEY) || {}).days) || {};
+  let n = 0;
+  for (const [k, d] of Object.entries(localDays)) {
+    if (!d || !d.updatedAt) continue;
+    const cur = S.days[k];
+    if (!cur || !cur.updatedAt || cur.updatedAt < d.updatedAt) { S.days[k] = clone(d); persist('sessions/' + k); n++; }
+  }
+  lsSet('morning-bench.imported.' + cloud.uid, 'yes');
+  cloud.importOffer = 0;
+  return n;
+}
+function importBanner() {
+  if (!cloud.importOffer) return '';
+  return `<div class="banner" id="importBanner"><p><b>Add your earlier history to your account?</b> This browser has ${cloud.importOffer} day${cloud.importOffer > 1 ? 's' : ''} of progress saved from before you signed in. Where both have the same day, the newer copy is kept.</p>
+    <div class="row"><button class="btn primary" id="importYes">Add to my account</button><button class="btn ghost" id="importNo">Not now</button></div></div>`;
+}
+function bindImportBanner(app) {
+  const y = $('#importYes', app), n = $('#importNo', app);
+  if (y) y.onclick = () => { const c = importLocal(); render(); toast(`Added ${c} day${c === 1 ? '' : 's'} to your account.`); };
+  if (n) n.onclick = () => { lsSet('morning-bench.imported.' + cloud.uid, 'skipped'); cloud.importOffer = 0; render(); };
+}
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 3500);
+}
+const G_ICON = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.8 6.4 29.1 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.3 18.9 12.5 24 12.5c2.9 0 5.6 1.1 7.6 2.9l5.7-5.7C33.8 6.4 29.1 4.5 24 4.5c-7.6 0-14.1 4.3-17.7 10.2z"/><path fill="#4CAF50" d="M24 43.5c5 0 9.6-1.9 13-5l-6-5.1c-2 1.4-4.4 2.1-7 2.1-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.8 39.1 16.4 43.5 24 43.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.4l6 5.1C36.9 39 43.5 34 43.5 24c0-1.2-.1-2.3-.4-3.5z"/></svg>';
+function accountPanel() {
+  if (window.claude) return '';
+  const msg = cloud.status ? `<div class="${cloud.statusOk ? 'chip good' : 'note'}" style="align-self:flex-start">${esc(cloud.status)}</div>` : '';
+  if (!cloud.configured) return `<div class="panel" style="display:flex;flex-direction:column;gap:8px"><h2>Account</h2><p class="muted" style="margin:0">Cloud sync isn’t set up on this site yet, so your progress is saved in this browser only.</p></div>`;
+  if (!cloud.sb) return `<div class="panel"><h2>Account</h2><p class="muted" style="margin:0">${esc(cloud.status || 'Loading sign-in…')}</p></div>`;
+  if (cloud.recovery) return `<div class="panel" style="display:flex;flex-direction:column;gap:12px" id="acctPanel"><h2>Set a new password</h2>
+      <label class="field" style="max-width:340px"><span>New password</span><input type="password" id="newPw" data-local autocomplete="new-password" minlength="8"></label>
+      <div class="row"><button class="btn primary" id="newPwSave">Save password</button></div>${msg}</div>`;
+  if (cloud.user) return `<div class="panel" style="display:flex;flex-direction:column;gap:12px" id="acctPanel"><h2>Account</h2>
+      <div class="row"><span class="chip good">Signed in</span><span>${esc(cloud.user.email || '')}</span><button class="btn small" id="signOut">Sign out</button></div>
+      <p class="muted" style="margin:0;font-size:.88rem">Your progress saves to your account and syncs to any device where you sign in. ${lsGet('morning-bench.imported.' + cloud.uid) === 'skipped' ? '<button class="btn ghost small" id="reImport">Add this browser’s earlier history</button>' : ''}</p>${msg}</div>`;
+  return `<div class="panel" style="display:flex;flex-direction:column;gap:12px;max-width:520px" id="acctPanel"><h2>Account</h2>
+      <p class="muted" style="margin:0">Sign in to save your progress across devices. Without an account it stays in this browser.</p>
+      <button class="gbtn" id="googleIn" type="button">${G_ICON}Continue with Google</button>
+      <div class="or">or use email</div>
+      <form id="emailForm" style="display:flex;flex-direction:column;gap:10px" novalidate>
+        <label class="field"><span>Email</span><input type="email" id="authEmail" data-local autocomplete="email" required value="${esc(cloud.email || '')}"></label>
+        <label class="field"><span>Password</span><input type="password" id="authPw" data-local autocomplete="current-password" minlength="8"></label>
+        <div class="row"><button class="btn primary" type="submit" id="signIn">Sign in</button><button class="btn" type="button" id="signUp">Create account</button><button class="btn ghost small" type="button" id="forgot">Forgot password?</button></div>
+      </form>${msg}</div>`;
+}
+function bindAccount(app) {
+  const say = (text, ok) => { cloud.status = text; cloud.statusOk = !!ok; renderSetup(app); };
+  const run = async (fn) => { if (cloud.busy) return; cloud.busy = true; cloud.status = ''; try { await fn(); } catch (e) { say((e && e.message) || 'Something went wrong. Try again.'); } finally { cloud.busy = false; } };
+  const creds = () => ({email: ($('#authEmail').value || '').trim(), password: $('#authPw').value || ''});
+  const ae = $('#authEmail', app); if (ae) ae.addEventListener('input', () => { cloud.email = ae.value; });
+  const g = $('#googleIn', app);
+  if (g) g.onclick = () => run(async () => {
+    const {error} = await cloud.sb.auth.signInWithOAuth({provider: 'google', options: {redirectTo: location.origin + location.pathname}});
+    if (error) throw error;
+  });
+  const f = $('#emailForm', app);
+  if (f) f.addEventListener('submit', e => { e.preventDefault(); run(async () => {
+    const c = creds(); if (!c.email || !c.password) return say('Enter your email and password.');
+    const {error} = await cloud.sb.auth.signInWithPassword(c); if (error) throw error;
+    cloud.status = '';
+  }); });
+  const su = $('#signUp', app);
+  if (su) su.onclick = () => run(async () => {
+    const c = creds(); if (!c.email || c.password.length < 8) return say('Enter your email and a password of at least 8 characters.');
+    const {data, error} = await cloud.sb.auth.signUp({...c, options: {emailRedirectTo: location.origin + location.pathname}});
+    if (error) throw error;
+    if (!data.session) say('Check your email for a link to confirm your account, then sign in.', true);
+  });
+  const fg = $('#forgot', app);
+  if (fg) fg.onclick = () => run(async () => {
+    const email = ($('#authEmail').value || '').trim(); if (!email) return say('Enter your email first, then press Forgot password.');
+    const {error} = await cloud.sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
+    if (error) throw error; say('If that email has an account, a reset link is on its way.', true);
+  });
+  const so = $('#signOut', app);
+  if (so) so.onclick = () => run(async () => { const {error} = await cloud.sb.auth.signOut(); if (error) throw error; });
+  const np = $('#newPwSave', app);
+  if (np) np.onclick = () => run(async () => {
+    const pw = $('#newPw').value || ''; if (pw.length < 8) return say('Use at least 8 characters.');
+    const {error} = await cloud.sb.auth.updateUser({password: pw}); if (error) throw error;
+    cloud.recovery = false; say('Password updated.', true);
+  });
+  const ri = $('#reImport', app);
+  if (ri) ri.onclick = () => { const c = importLocal(); toast(`Added ${c} day${c === 1 ? '' : 's'} to your account.`); renderSetup(app); };
+}
+
 /* ---------- SETUP ---------- */
 function renderSetup(app) {
   const c = S.settings.arith;
   const rng = (id, label, v) => `<div class="field"><span>${label}</span><div class="row" style="gap:6px;flex-wrap:nowrap"><input type="number" id="${id}0" value="${v[0]}" min="0" max="9999"><span class="muted">to</span><input type="number" id="${id}1" value="${v[1]}" min="0" max="9999"></div></div>`;
   app.innerHTML = `
     <div class="today-head"><div><div class="label">Setup</div><h1>Tune the routine</h1></div></div>
+    ${accountPanel()}
     <div class="panel" style="display:flex;flex-direction:column;gap:14px">
       <h2>Arithmetic sprint</h2>
       <div class="row">${[['add', 'Addition'], ['sub', 'Subtraction'], ['mul', 'Multiplication'], ['div', 'Division']].map(([k, t]) => `<label class="row" style="gap:6px"><input type="checkbox" id="op-${k}" ${c.ops[k] ? 'checked' : ''}> ${t}</label>`).join('')}</div>
@@ -1303,6 +1483,7 @@ function renderSetup(app) {
   const ki = $('#keyInput', app); if (ki) ki.addEventListener('keydown', e => { if (e.key === 'Enter') ks.click(); });
   const kr = $('#keyRemove', app); if (kr) kr.onclick = () => { lsSet(KEY_LS, ''); renderSetup(app); };
   const am = $('#apiModel', app); if (am) am.onchange = () => lsSet(MODEL_LS, am.value);
+  bindAccount(app);
 }
 
 /* ---------- boot ---------- */
@@ -1310,6 +1491,7 @@ window.addEventListener('hashchange', route);
 route();
 initDb();
 initSample();
+initCloud();
 })();
 </script>
 

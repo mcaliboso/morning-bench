@@ -15,9 +15,11 @@ Plus an optional adaptive dual n-back tab and a Progress tab (streak, consistenc
 
 No build step. Open `index.html` in a browser, or serve the folder with any static host. It's deployed with GitHub Pages from the `main` branch root.
 
-## Data
+## Data and accounts
 
-History is stored in the browser's `localStorage` under `morning-bench.v1`, so it stays on the device and browser you use. Clearing site data erases it.
+Without an account, history is stored in the browser's `localStorage` under `morning-bench.v1`, so it stays on the device and browser you use.
+
+With an account (Google or email/password, through Supabase), progress saves to your account and syncs across devices. Each day is one row in `public.sessions`; row-level security keeps every row private to its owner. The first time you sign in, the app offers to add any history already saved in that browser. Setup steps are in [`supabase/SETUP.md`](supabase/SETUP.md). `config.js` holds only the public project URL and anon key; never put the service-role key in this repo.
 
 ## AI review
 
