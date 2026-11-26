@@ -914,6 +914,38 @@ function drillBody(d) {
 
 /* ---------- AI review ---------- */
 let sampleFn = null, sampleReady = false;
+/* Standalone copies (e.g. GitHub Pages) have no Claude runtime; they can grade with the viewer's own Anthropic API key,
+   kept only in this browser's localStorage and sent only to api.anthropic.com. */
+const hasClaudeRuntime = () => !!(window.claude && typeof window.claude.use === 'function');
+const KEY_LS = 'morning-bench.apiKey', MODEL_LS = 'morning-bench.apiModel';
+const API_MODELS = [['claude-opus-5-5', 'Claude Opus 5.5 (best grading)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (cheaper)']];
+function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+const apiKey = () => hasClaudeRuntime() ? '' : lsGet(KEY_LS);
+const apiModel = () => { const m = lsGet(MODEL_LS); return API_MODELS.some(x => x[0] === m) ? m : API_MODELS[0][0]; };
+async function apiJson(prompt, signal) {
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', signal,
+      headers: {'content-type': 'application/json', 'x-api-key': apiKey(), 'anthropic-version': '2026-10-21',
+        'anthropic-beta': 'server-side-fallback-2026-07-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({model: apiModel(), max_tokens: 16000, output_config: {effort: 'medium'}, fallbacks: 'default',
+        messages: [{role: 'user', content: prompt}]})
+    });
+  } catch (e) { throw {code: e && e.name === 'AbortError' ? 'cancelled' : 'network'}; }
+  let body = null; try { body = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    const code = res.status === 401 || res.status === 403 ? 'bad_key' : res.status === 429 ? 'rate_limited' : res.status === 400 ? 'api_400' : 'upstream_error';
+    throw {code, detail: String((body && body.error && body.error.message) || '').slice(0, 200)};
+  }
+  if (!body || body.stop_reason === 'refusal') throw {code: 'refused'};
+  const text = (body.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  const a = text.indexOf('{'), b = text.lastIndexOf('}');
+  if (a < 0 || b < a) throw {code: 'invalid_json'};
+  try { return {out: JSON.parse(text.slice(a, b + 1)), model: body.model || apiModel()}; } catch (e) { throw {code: 'invalid_json'}; }
+}
+const canReview = () => !!sampleFn || !!apiKey();
 const rv = { busy: false, ctl: null, err: '' };
 async function initSample() {
   if (window.claude && typeof window.claude.use === 'function') {
@@ -937,12 +969,12 @@ function reviewHtml(d) {
   const key = d.drill.type, r = d.drill.review;
   let h = r && r.type === key && RUBRICS[key] ? reviewCard(r) : '';
   if (!RUBRICS[key]) return h;
-  if (!sampleFn) return h + (sampleReady ? `<p class="muted" style="margin:0;font-size:.88rem">${window.claude ? 'AI review isn’t available in this view.' : 'AI review needs Claude, so it only runs in the Claude version of Morning Bench. Your notes still save here.'}</p>` : '');
+  if (!canReview()) return h + (sampleReady ? `<p class="muted" style="margin:0;font-size:.88rem">${hasClaudeRuntime() ? 'AI review isn’t available in this view.' : 'To get AI reviews here, add your Anthropic API key in <a href="#setup">Setup</a>. Your notes save either way.'}</p>` : '');
   const len = (d.drill.notes || '').trim().length;
   const has = r && r.type === key;
   h += rv.busy
     ? `<div class="row"><span class="muted">Reviewing against the rubric. This can take up to a minute.</span><button class="btn small" id="rvStop">Stop</button></div>`
-    : `<div class="row"><button class="btn ${has ? '' : 'primary'}" id="rvGo" ${len < 40 ? 'disabled' : ''}>${has ? 'Review again' : 'Get AI review'}</button><span class="muted" id="rvHint" style="font-size:.85rem">${len < 40 ? 'Write a few lines first.' : 'Scores 5 criteria, 20 points each.'}</span></div>`;
+    : `<div class="row"><button class="btn ${has ? '' : 'primary'}" id="rvGo" ${len < 40 ? 'disabled' : ''}>${has ? 'Review again' : 'Get AI review'}</button><span class="muted" id="rvHint" style="font-size:.85rem">${len < 40 ? 'Write a few lines first.' : 'Scores 5 criteria, 20 points each.'}</span>${!sampleFn ? `<span class="muted" style="font-size:.8rem">Uses your API key · ${esc(apiModel())}</span>` : ''}</div>`;
   if (rv.err) h += `<div class="note">${esc(rv.err)}</div>`;
   return h;
 }
@@ -955,22 +987,25 @@ function paintReview() {
 async function runReview() {
   const d = day(), key = d.drill.type, R = RUBRICS[key];
   const notes = (d.drill.notes || '').trim();
-  if (!R || !sampleFn || notes.length < 40 || rv.busy) return;
+  if (!R || !canReview() || notes.length < 40 || rv.busy) return;
   rv.busy = true; rv.err = ''; rv.ctl = new AbortController(); paintReview();
   try {
-    const out = await sampleFn.json(graderPrompt(key, d.drill.prompt || '', notes), {signal: rv.ctl.signal, modelTier: 'default'});
+    const prompt = graderPrompt(key, d.drill.prompt || '', notes);
+    let out, via;
+    if (sampleFn) { out = await sampleFn.json(prompt, {signal: rv.ctl.signal, modelTier: 'default'}); via = 'claude'; }
+    else { const r = await apiJson(prompt, rv.ctl.signal); out = r.out; via = 'api:' + r.model; }
     const scores = {}; let total = 0;
     R.c.forEach(([id]) => { let s = Math.round(Number(out && out.scores && out.scores[id])); if (!isFinite(s)) s = 0; s = Math.max(0, Math.min(20, s)); scores[id] = s; total += s; });
     const weakest = R.c.some(c => c[0] === (out && out.weakest)) ? out.weakest : R.c.reduce((a, c) => scores[c[0]] < scores[a] ? c[0] : a, R.c[0][0]);
     const dd = day(); const prev = dd.drill.review;
     dd.drill.review = { type: key, rubric: R.v, grader: GRADER_VERSION, scores, total, weakest,
       fix: String((out && out.fix) || '').slice(0, 600), strengths: String((out && out.strengths) || '').slice(0, 400),
-      reference: String((out && out.reference) || '').slice(0, 3000), at: Date.now(), attempts: (prev && prev.type === key ? prev.attempts || 1 : 0) + 1 };
+      reference: String((out && out.reference) || '').slice(0, 3000), at: Date.now(), via, attempts: (prev && prev.type === key ? prev.attempts || 1 : 0) + 1 };
     saveDay(); refreshChip('drill');
   } catch (e) {
     const code = e && e.code;
     if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(code)) sampleFn = null;
-    else if (code !== 'cancelled') rv.err = ({rate_limited: 'Too many reviews in a short time. Try again in a few minutes.', invalid_json: 'The review came back in an unexpected format. Try again.', refused: 'Claude declined to review this. Try rewording your notes.', session_expired: 'Sign in to Claude again, then try again.', empty_completion: 'The review came back empty. Try again.'})[code] || 'The review didn’t finish. Try again.';
+    else if (code !== 'cancelled') rv.err = ({rate_limited: 'Too many reviews in a short time. Try again in a few minutes.', invalid_json: 'The review came back in an unexpected format. Try again.', refused: 'Claude declined to review this. Try rewording your notes.', session_expired: 'Sign in to Claude again, then try again.', empty_completion: 'The review came back empty. Try again.', bad_key: 'Your API key was rejected. Check it in Setup.', network: 'Couldn’t reach the Anthropic API. Check your connection and try again.', api_400: 'The API refused the request' + (e.detail ? ': ' + e.detail : '.')})[code] || 'The review didn’t finish. Try again.';
   } finally { rv.busy = false; rv.ctl = null; paintReview(); }
 }
 function refreshChip(id) { const sec = $(`[data-step="${id}"]`); const chip = sec && $('header .chip', sec); if (chip) chip.outerHTML = stepChip(id, day()); }
@@ -1242,6 +1277,14 @@ function renderSetup(app) {
       </div>
       <div><div class="label">Drill rotation</div><div class="tablewrap"><table><tbody>${[1, 2, 3, 4, 5, 6, 0].map(i => `<tr><td>${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}</td><td>${esc(DRILLS[ROTATION[i]].name)}</td></tr>`).join('')}</tbody></table></div></div>
     </div>
+    ${hasClaudeRuntime() ? '' : `<div class="panel" style="display:flex;flex-direction:column;gap:12px" id="apiPanel">
+      <h2>AI review</h2>
+      <p class="muted prose" style="margin:0">Drill reviews here use your own Anthropic API key and are billed to your API account, usually a few cents per review. The key is stored only in this browser and sent only to api.anthropic.com. Other pages on this same github.io domain could read it, so use a key with a low spend limit.</p>
+      ${apiKey() ? `<div class="row"><span class="chip good">Key saved</span><span class="mono">${esc(apiKey().slice(0, 10))}…${esc(apiKey().slice(-4))}</span><button class="btn small" id="keyRemove">Remove key</button></div>`
+        : `<div class="row" style="flex-wrap:nowrap"><input type="password" id="keyInput" data-local autocomplete="off" spellcheck="false" placeholder="sk-ant-…" aria-label="Anthropic API key"><button class="btn primary" id="keySave">Save key</button></div>
+           <div class="muted" style="font-size:.85rem">Create one at <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">platform.claude.com</a>.</div>`}
+      <label class="field" style="max-width:340px"><span>Grading model</span><select id="apiModel" data-local>${API_MODELS.map(([v, t]) => `<option value="${v}" ${v === apiModel() ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+    </div>`}
     <p class="muted" style="font-size:.85rem">Changes save as you make them.</p>`;
   const num = (id, fb) => { const v = parseInt($(id).value, 10); return isFinite(v) ? Math.max(0, Math.min(9999, v)) : fb; };
   const save = () => {
@@ -1254,7 +1297,12 @@ function renderSetup(app) {
     leetT.left = null; drillT.left = null;
     saveSettings();
   };
-  $$('input,select', app).forEach(el => el.addEventListener('change', save));
+  $$('input:not([data-local]),select:not([data-local])', app).forEach(el => el.addEventListener('change', save));
+  const ks = $('#keySave', app);
+  if (ks) ks.onclick = () => { const v = $('#keyInput').value.trim(); if (!v) return; lsSet(KEY_LS, v); renderSetup(app); };
+  const ki = $('#keyInput', app); if (ki) ki.addEventListener('keydown', e => { if (e.key === 'Enter') ks.click(); });
+  const kr = $('#keyRemove', app); if (kr) kr.onclick = () => { lsSet(KEY_LS, ''); renderSetup(app); };
+  const am = $('#apiModel', app); if (am) am.onchange = () => lsSet(MODEL_LS, am.value);
 }
 
 /* ---------- boot ---------- */

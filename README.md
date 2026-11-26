@@ -21,4 +21,4 @@ History is stored in the browser's `localStorage` under `morning-bench.v1`, so i
 
 ## AI review
 
-The drill reviewer calls Claude through the claude.ai artifact runtime, so it only works in the Claude-hosted version. On GitHub Pages the review button is replaced by a short note; everything else works the same.
+In the Claude-hosted version the drill reviewer runs on your Claude account. On GitHub Pages, add your own Anthropic API key under **Setup → AI review**. The key is stored only in your browser's localStorage, is sent only to `api.anthropic.com`, and never goes in this repo. Reviews are billed to your API account. You can pick Claude Opus 5.5 or Claude Sonnet 5.5 as the grader, and **Remove key** deletes it from the browser.
