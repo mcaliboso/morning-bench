@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#EFF2F5">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Morning Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an engineer's bench on graph paper. A 30-minute rail of four blocks, one open at a time; tabs for progress, n-back and setup. */
+:root{
+  --bg:#EFF2F5; --surface:#FFFFFF; --surface-2:#F6F8FA; --ink:#121922; --muted:#5A6574; --line:#D6DCE4;
+  --accent:#2A56DB; --accent-ink:#FFFFFF; --accent-soft:rgba(42,86,219,.10);
+  --warm:#B96F06; --good:#1C8754; --bad:#C23E2C; --grid:rgba(42,86,219,.055);
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0C1117; --surface:#141B24; --surface-2:#19222D; --ink:#E4EAF1; --muted:#8B97A7; --line:#243040;
+  --accent:#7E9CFF; --accent-ink:#0C1117; --accent-soft:rgba(126,156,255,.14);
+  --warm:#F2A93B; --good:#4FC48C; --bad:#F2786A; --grid:rgba(126,156,255,.06); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0C1117; --surface:#141B24; --surface-2:#19222D; --ink:#E4EAF1; --muted:#8B97A7; --line:#243040;
+  --accent:#7E9CFF; --accent-ink:#0C1117; --accent-soft:rgba(126,156,255,.14);
+  --warm:#F2A93B; --good:#4FC48C; --bad:#F2786A; --grid:rgba(126,156,255,.06); color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:1.55rem;font-weight:700}
+h2{font-size:1.25rem;font-weight:700}
+h3{font-size:1rem;font-weight:600;font-family:var(--f-body)}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);margin-bottom:20px}
+.top .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px;padding-bottom:12px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand b{font-family:var(--f-display);font-size:1.2rem;font-weight:700}
+.sync{font-size:.75rem;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+.sync[data-s="synced"] i{background:var(--good)}
+.sync[data-s="error"] i,.sync[data-s="slow"] i{background:var(--warm)}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+nav.tabs a{text-decoration:none;color:var(--muted);padding:6px 12px;border-radius:999px;font-weight:500;font-size:.9rem}
+nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--bg)}
+
+/* buttons & inputs */
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.small{padding:4px 10px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+input[type=text],input[type=url],input[type=number],select,textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:110px;line-height:1.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.grid2{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>span{font-size:.8rem;color:var(--muted);font-weight:500}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:6px 12px;cursor:pointer;font-size:.88rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+/* today header */
+.today-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.clock{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 8px 8px 14px}
+.clock .num{font-size:1.3rem;font-weight:600}
+
+/* rail */
+.rail{display:flex;flex-direction:column;gap:0;position:relative}
+.step{display:grid;grid-template-columns:64px 1fr;gap:0 14px}
+.step .mark{display:flex;flex-direction:column;align-items:center}
+.step .dot{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;font-family:var(--f-mono);font-size:.8rem;font-weight:600;color:var(--muted);margin-top:14px}
+.step .stem{flex:1;width:2px;background:var(--line);margin-top:4px}
+.step:last-child .stem{display:none}
+.step.done .dot{background:var(--good);border-color:var(--good);color:var(--surface)}
+.step.open .dot{border-color:var(--accent);color:var(--accent)}
+.step .mins{font-family:var(--f-mono);font-size:.7rem;color:var(--muted);margin-top:4px;white-space:nowrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;min-width:0}
+.card>header{display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;flex-wrap:wrap}
+.card>header h2{margin-right:auto}
+.card .body{padding:0 16px 18px;display:flex;flex-direction:column;gap:14px}
+.step:not(.open) .card .body{display:none}
+.chip{font-size:.75rem;padding:2px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent);background:color-mix(in srgb,var(--good) 10%,transparent)}
+.chip.warm{color:var(--warm);border-color:color-mix(in srgb,var(--warm) 40%,transparent);background:color-mix(in srgb,var(--warm) 10%,transparent)}
+.chip.acc{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:var(--accent-soft)}
+@media (max-width:560px){.step{grid-template-columns:40px 1fr;gap:0 8px}.step .mins{display:none}}
+
+/* cube */
+.scramble{font-family:var(--f-mono);font-size:1.02rem;background:var(--surface-2);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;word-spacing:.2em;overflow-wrap:anywhere}
+.pad{border:2px solid var(--line);border-radius:var(--r);background:var(--surface-2);padding:26px 12px;text-align:center;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;width:100%}
+.pad .num{font-size:clamp(2.6rem,9vw,4.2rem);font-weight:600;line-height:1}
+.pad[data-p="holding"]{border-color:var(--bad)} .pad[data-p="holding"] .num{color:var(--bad)}
+.pad[data-p="ready"]{border-color:var(--good)} .pad[data-p="ready"] .num{color:var(--good)}
+.pad[data-p="running"] .num{color:var(--ink)}
+.solves{display:flex;gap:8px;flex-wrap:wrap}
+.solve{font-family:var(--f-mono);border:1px solid var(--line);border-radius:8px;padding:4px 4px 4px 10px;display:inline-flex;gap:6px;align-items:center;background:var(--surface)}
+.solve button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 6px;font-size:1rem}
+.stats{display:flex;gap:22px;flex-wrap:wrap}
+.stat .num{font-size:1.25rem;font-weight:600}
+
+/* arithmetic */
+.sprint{border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.sprint .bar{height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.sprint .bar i{display:block;height:100%;background:var(--accent);width:100%;transform-origin:left}
+.problem{font-family:var(--f-mono);font-size:clamp(2.2rem,8vw,3.4rem);font-weight:600;text-align:center;line-height:1.1;padding:12px 0 4px}
+.answer{font-family:var(--f-mono);font-size:1.8rem;text-align:center;max-width:240px;margin:0 auto;display:block}
+.sprint-top{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:1rem}
+.slow{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.slow div{font-family:var(--f-mono);font-size:.88rem;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;display:flex;justify-content:space-between;gap:8px}
+
+/* timers */
+.timer{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.timer .num{font-size:2rem;font-weight:600;min-width:5ch}
+.timer.over .num{color:var(--bad)}
+.note{border-left:3px solid var(--warm);background:color-mix(in srgb,var(--warm) 8%,transparent);padding:8px 12px;border-radius:0 8px 8px 0;font-size:.92rem}
+.prompt{font-size:1.08rem;font-weight:500;background:var(--surface-2);border-radius:8px;padding:12px 14px;border:1px solid var(--line)}
+.prompt small{display:block;color:var(--muted);font-weight:400;font-size:.85rem;margin-top:6px}
+
+/* progress */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+@media (max-width:640px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.tile .num{font-size:1.6rem;font-weight:600;display:block}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;min-width:0}
+.panel h2{margin-bottom:4px}
+.chart{width:100%;height:auto;display:block;margin-top:10px}
+.chart text{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.heat{display:grid;grid-template-rows:repeat(7,14px);grid-auto-flow:column;grid-auto-columns:14px;gap:3px;margin-top:10px;overflow-x:auto;padding-bottom:4px}
+.heat i{border-radius:3px;background:var(--surface-2);border:1px solid var(--line)}
+.heat i[data-l="1"]{background:color-mix(in srgb,var(--accent) 30%,var(--surface));border-color:transparent}
+.heat i[data-l="2"]{background:color-mix(in srgb,var(--accent) 55%,var(--surface));border-color:transparent}
+.heat i[data-l="3"]{background:color-mix(in srgb,var(--accent) 78%,var(--surface));border-color:transparent}
+.heat i[data-l="4"]{background:var(--accent);border-color:transparent}
+.heat i[data-today]{outline:2px solid var(--ink);outline-offset:0}
+.tablewrap{overflow-x:auto;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.num{white-space:nowrap}
+.empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:8px;text-align:center;margin-top:10px}
+
+/* n-back */
+.nb-board{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:330px;margin:0 auto;aspect-ratio:1;width:100%}
+.nb-board i{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;font-family:var(--f-mono);font-size:1.6rem;font-weight:600;font-style:normal}
+.nb-board i.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.nb-board i.center{background:transparent;border-style:dashed}
+.nb-keys{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:420px;margin:0 auto;width:100%}
+.nb-keys .btn{justify-content:center;padding:14px}
+.nb-keys .btn.hit{background:var(--accent-soft);border-color:var(--accent)}
+.prose{max-width:65ch}
+.prose p{margin:.4em 0}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><b>Morning Bench</b><span class="sync" id="sync" data-s="local"><i></i><span>Saved in this browser</span></span></div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#today" data-tab="today">Today</a>
+      <a href="#progress" data-tab="progress">Progress</a>
+      <a href="#nback" data-tab="nback">N-back</a>
+      <a href="#setup" data-tab="setup">Setup</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<script>
+(() => {
+'use strict';
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2 = n => String(n).padStart(2, '0');
+const keyOf = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const todayKey = () => keyOf(new Date());
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const clone = o => JSON.parse(JSON.stringify(o));
+const fmtMs = ms => { if (ms == null || !isFinite(ms)) return '–'; const s = ms / 1000; if (s < 60) return s.toFixed(2); const m = Math.floor(s / 60); return m + ':' + (s - m * 60).toFixed(2).padStart(5, '0'); };
+const fmtClock = ms => { ms = Math.max(0, ms); const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + ':' + pad2(t % 60); };
+const fmtElapsed = ms => { const t = Math.floor(Math.max(0, ms) / 1000); return Math.floor(t / 60) + ':' + pad2(t % 60); };
+const shortDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}); };
+const isTyping = () => { const a = document.activeElement; return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable); };
+
+let audioCtx = null;
+function beep(freq = 880, dur = 0.15, times = 1) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < times; i++) {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = freq; o.type = 'sine';
+      const t0 = audioCtx.currentTime + i * (dur + 0.08);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g).connect(audioCtx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+    }
+  } catch (e) {}
+}
+
+/* ---------- content banks ---------- */
+const DRILLS = {
+  fermi: { name: 'Fermi estimate', how: 'Write your assumptions as a chain of numbers, get an answer within 10×, then name the assumption you trust least.', prompts: [
+    'How much new storage does YouTube need per day?',
+    'How many GPUs would it take to give every Google search an LLM-written answer?',
+    'How many emails are sent worldwide every second?',
+    'How many requests per second does a ride-share app handle at peak in one big city?',
+    'How many lines of code ship in a modern car?',
+    'How much electricity does one data center use in a year, and how many homes is that?',
+    'How many piano-sized shipping containers pass through the Port of Los Angeles each day?',
+    'How many bytes of text are posted to social media worldwide per day?',
+    'How many Wi-Fi access points are there in New York City?',
+    'How many hours of human labor go into building one commercial airliner?'
+  ]},
+  design: { name: 'Back-of-the-envelope design', how: 'Estimate QPS, storage and bandwidth first. Sketch the boxes, then find the one component that breaks first at 10× load.', prompts: [
+    'A URL shortener taking 100M new links a month.',
+    'A rate limiter in front of an API with 10k clients and bursty traffic.',
+    'A chat app with 50M daily users: messages per second and storage per year.',
+    'A news feed for 200M users. Fan-out on write or on read?',
+    'A global leaderboard for a mobile game with 10M players.',
+    'A photo upload service: upload bandwidth, storage growth and CDN cost.',
+    'A notification system sending 1B pushes a day.',
+    'A metrics pipeline ingesting 1M data points per second.',
+    'Typeahead search suggestions for a site with 5k QPS.',
+    'A distributed job scheduler that runs 10M cron jobs a day.'
+  ]},
+  postmortem: { name: 'Post-mortem breakdown', how: 'From memory or a quick read: what failed, why nothing caught it, how it was detected, and the single change you would have made first.', prompts: [
+    'Cloudflare, July 2, 2019: one regular expression took down the edge.',
+    'AWS S3 us-east-1, February 28, 2017: a mistyped command removed too many servers.',
+    'GitLab, January 31, 2017: a production database was deleted and backups failed.',
+    'Knight Capital, August 1, 2012: a stale feature flag lost $440M in 45 minutes.',
+    'Facebook, October 4, 2021: a BGP change took every service offline.',
+    'CrowdStrike, July 19, 2024: a content update crashed Windows machines worldwide.',
+    'Fastly, June 8, 2021: one customer config change triggered a global outage.',
+    'Atlassian, April 2022: a script deleted sites for about 400 customers for up to two weeks.',
+    'A bug you shipped yourself. Write it up as if it were public.'
+  ]},
+  paper: { name: 'Paper summary', how: 'Three sentences: the problem, the key idea, the trade-off. Then one question you still have.', prompts: [
+    'Dynamo: Amazon’s Highly Available Key-value Store (2007)',
+    'MapReduce: Simplified Data Processing on Large Clusters (2004)',
+    'The Google File System (2003)',
+    'In Search of an Understandable Consensus Algorithm, the Raft paper (2014)',
+    'Attention Is All You Need (2017)',
+    'Spanner: Google’s Globally-Distributed Database (2012)',
+    'Time, Clocks, and the Ordering of Events in a Distributed System (Lamport, 1978)',
+    'End-to-End Arguments in System Design (1984)',
+    'The Log: What every software engineer should know about real-time data (Kreps, 2013)',
+    'Bigtable: A Distributed Storage System for Structured Data (2006)'
+  ]},
+  redo: { name: 'Redo a missed problem', how: 'Re-solve a problem you didn’t finish cleanly, from a blank editor, without looking at your notes until you are done.', prompts: [] },
+  explain: { name: 'Explain it simply', how: 'Pick something you use at work and explain how it really works to a smart 12-year-old. Every gap you hit is something to look up.', prompts: [
+    'How does TLS keep a connection private?', 'What actually happens when you type a URL and press Enter?', 'How does a hash map stay fast as it grows?',
+    'How does garbage collection decide what to free?', 'How does a B-tree index make a query fast?', 'How does git store history?',
+    'How does a CPU cache make code faster?', 'How does gradient descent train a model?'
+  ]},
+  review: { name: 'Weekly review', how: 'Look at this week on the Progress tab. Which block improved, which stalled, and what is one change for next week?', prompts: [
+    'Review the week: trends, misses and one change for next week.'
+  ]}
+};
+// Day of week -> drill. 0 = Sunday. Weekend picks are a guess.
+const ROTATION = {1: 'fermi', 2: 'design', 3: 'postmortem', 4: 'paper', 5: 'redo', 6: 'explain', 0: 'review'};
+
+/* ---------- state & storage ---------- */
+const DEFAULTS = {
+  arith: { duration: 120, rounds: 2, ops: {add: true, sub: true, mul: true, div: true}, addA: [2, 100], addB: [2, 100], mulA: [2, 12], mulB: [2, 100] },
+  cubeTarget: 3, leetMin: 15, drillMin: 7,
+  nback: { n: 2, speak: true }
+};
+function mergeDeep(base, over) {
+  const out = clone(base);
+  for (const k in over || {}) {
+    if (over[k] && typeof over[k] === 'object' && !Array.isArray(over[k]) && out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) out[k] = mergeDeep(out[k], over[k]);
+    else out[k] = over[k];
+  }
+  return out;
+}
+const LS_KEY = 'morning-bench.v1';
+const S = { days: {}, settings: clone(DEFAULTS) };
+try {
+  const j = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+  if (j) { S.days = j.days || {}; S.settings = mergeDeep(DEFAULTS, j.settings || {}); }
+} catch (e) {}
+function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} }
+function blankDay(k) { return { date: k, cube: {solves: []}, arith: {rounds: []}, leet: {}, drill: {}, nback: {rounds: []}, done: {} }; }
+function day(k = todayKey()) {
+  if (!S.days[k]) S.days[k] = blankDay(k);
+  const d = S.days[k];
+  for (const [f, v] of Object.entries(blankDay(k))) if (d[f] == null) d[f] = v;
+  return d;
+}
+const realDays = () => Object.values(S.days).filter(d => d && d.updatedAt).sort((a, b) => a.date < b.date ? -1 : 1);
+
+let db = null;
+const dirty = new Set(), writing = new Set(), timers = {};
+function setSync(s) {
+  const el = $('#sync'); if (!el) return;
+  el.dataset.s = s;
+  el.lastElementChild.textContent = ({local: 'Saved in this browser', connecting: 'Connecting…', synced: 'Saved', slow: 'Saved here; sync is slow', error: 'Saved here; sync failed'})[s] || s;
+}
+function persist(path) {
+  lsSave();
+  if (!db) return;
+  dirty.add(path);
+  clearTimeout(timers[path]);
+  timers[path] = setTimeout(() => flush(path), 700);
+}
+async function flush(path) {
+  if (writing.has(path) || !dirty.has(path)) return;
+  dirty.delete(path); writing.add(path);
+  const data = path === 'config/settings' ? S.settings : S.days[path.split('/')[1]];
+  try { await db.doc(path).set(clone(data)); setSync('synced'); }
+  catch (e) {
+    setSync('error');
+    if (e && e.code === 'unavailable') setTimeout(() => { dirty.add(path); flush(path); }, 1500 + Math.random() * 1500);
+  } finally {
+    writing.delete(path);
+    if (dirty.has(path)) flush(path);
+  }
+}
+function saveDay(k = todayKey()) { const d = day(k); d.updatedAt = Date.now(); persist('sessions/' + k); }
+function saveSettings() { persist('config/settings'); }
+
+async function initDb() {
+  if (!window.claude || typeof window.claude.use !== 'function') return;
+  let d = null;
+  try { d = await window.claude.use('db'); } catch (e) { d = null; }
+  if (!d) return;
+  db = d; setSync('connecting');
+  let migrated = false;
+  const slow = setTimeout(() => setSync('slow'), 10000);
+  db.collection('sessions').onSnapshot(snap => {
+    let changed = false; const seen = new Set();
+    snap.docs.forEach(doc => {
+      const k = doc.id; seen.add(k);
+      if (dirty.has('sessions/' + k) || writing.has('sessions/' + k)) return;
+      const remote = doc.data(); const local = S.days[k];
+      if (local && (local.updatedAt || 0) > (remote.updatedAt || 0)) { if (!snap.metadata.fromCache) persist('sessions/' + k); return; }
+      if (!local || (local.updatedAt || 0) !== (remote.updatedAt || 0)) { S.days[k] = clone(remote); changed = true; }
+    });
+    if (!snap.metadata.fromCache) {
+      clearTimeout(slow); setSync('synced');
+      if (!migrated) { migrated = true; for (const k in S.days) if (!seen.has(k) && S.days[k].updatedAt) persist('sessions/' + k); }
+    }
+    if (changed) { lsSave(); softRender(); }
+  }, () => { clearTimeout(slow); setSync('error'); });
+  try {
+    const s = await db.doc('config/settings').get();
+    if (s.exists) { S.settings = mergeDeep(DEFAULTS, s.data()); lsSave(); softRender(); }
+  } catch (e) {}
+}
+
+/* ---------- routing ---------- */
+const TABS = ['today', 'progress', 'nback', 'setup'];
+let tab = 'today';
+function route() {
+  const h = (location.hash || '').slice(1);
+  tab = TABS.includes(h) ? h : 'today';
+  $$('nav.tabs a').forEach(a => { if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (nb.running && tab !== 'nback') endNback(true);
+  render();
+}
+function busy() { return cube.phase === 'running' || cube.phase === 'holding' || cube.phase === 'ready' || sprint.running || nb.running; }
+let pendingRender = false;
+function softRender() { if (busy() || isTyping()) { pendingRender = true; return; } render(); }
+document.addEventListener('focusout', () => setTimeout(() => { if (pendingRender && !isTyping() && !busy()) { pendingRender = false; render(); } }, 50));
+function render() {
+  pendingRender = false;
+  const app = $('#app');
+  if (tab === 'today') renderToday(app);
+  else if (tab === 'progress') renderProgress(app);
+  else if (tab === 'nback') renderNback(app);
+  else renderSetup(app);
+}
+
+/* ---------- TODAY ---------- */
+const STEPS = [
+  { id: 'cube', name: 'Cube warm-up', mins: () => 3 },
+  { id: 'arith', name: 'Arithmetic sprint', mins: () => 5 },
+  { id: 'leet', name: 'LeetCode block', mins: () => S.settings.leetMin },
+  { id: 'drill', name: 'Open-ended drill', mins: () => S.settings.drillMin }
+];
+let openStep = null;
+function firstOpen(d) { const s = STEPS.find(s => !d.done[s.id]); return s ? s.id : null; }
+
+function renderToday(app) {
+  const d = day();
+  if (openStep === null) openStep = firstOpen(d) || 'cube';
+  const dk = new Date();
+  const drillKey = ROTATION[dk.getDay()];
+  let t = 0;
+  const ranges = STEPS.map(s => { const a = t; t += s.mins(); return [a, t]; });
+  const doneCount = STEPS.filter(s => d.done[s.id]).length;
+  app.innerHTML = `
+    <div class="today-head">
+      <div>
+        <div class="label">${esc(dk.toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric'}))}</div>
+        <h1>Today's routine</h1>
+        <div class="muted">${doneCount} of 4 blocks done · today's drill is <b>${esc(DRILLS[drillKey].name)}</b> · ${t} min plan</div>
+      </div>
+      <div class="clock" id="clock">${clockInner(d)}</div>
+    </div>
+    <div class="rail">
+      ${STEPS.map((s, i) => `
+        <section class="step ${d.done[s.id] ? 'done' : ''} ${openStep === s.id ? 'open' : ''}" data-step="${s.id}">
+          <div class="mark"><div class="dot">${d.done[s.id] ? '✓' : i + 1}</div><div class="mins">${ranges[i][0]}–${ranges[i][1]} min</div><div class="stem"></div></div>
+          <div class="card">
+            <header data-toggle="${s.id}" role="button" tabindex="0" aria-expanded="${openStep === s.id}">
+              <h2>${esc(s.name)}</h2>${stepChip(s.id, d)}
+            </header>
+            <div class="body" id="body-${s.id}">${openStep === s.id ? stepBody(s.id, d) : ''}</div>
+          </div>
+        </section>`).join('')}
+    </div>`;
+  $$('[data-toggle]', app).forEach(h => {
+    const go = () => { const id = h.dataset.toggle; if (busy()) return; openStep = openStep === id ? '' : id; render(); };
+    h.addEventListener('click', e => { if (e.target.closest('button')) return; go(); });
+    h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+  bindClock();
+  if (openStep) bindStep(openStep, d);
+}
+function stepChip(id, d) {
+  if (d.done[id]) return '<span class="chip good">Done</span>';
+  if (id === 'cube' && d.cube.solves.length) return `<span class="chip acc">${d.cube.solves.length} solve${d.cube.solves.length > 1 ? 's' : ''}</span>`;
+  if (id === 'arith' && d.arith.rounds.length) return `<span class="chip acc">Best ${Math.max(...d.arith.rounds.map(r => r.score))}</span>`;
+  if (id === 'leet' && d.leet.title) return `<span class="chip acc">In progress</span>`;
+  if (id === 'drill' && d.drill.notes) return `<span class="chip acc">In progress</span>`;
+  return '<span class="chip">Not started</span>';
+}
+function stepBody(id, d) { return ({cube: cubeBody, arith: arithBody, leet: leetBody, drill: drillBody})[id](d); }
+function bindStep(id, d) { ({cube: bindCube, arith: bindArith, leet: bindLeet, drill: bindDrill})[id](d); }
+function refreshStep(id) {
+  const d = day(); const sec = $(`[data-step="${id}"]`); if (!sec) return;
+  sec.classList.toggle('done', !!d.done[id]);
+  $('.dot', sec).textContent = d.done[id] ? '✓' : (STEPS.findIndex(s => s.id === id) + 1);
+  const chip = $('header .chip', sec); if (chip) chip.outerHTML = stepChip(id, d);
+  if (openStep === id) { $(`#body-${id}`).innerHTML = stepBody(id, d); bindStep(id, d); }
+}
+function markDone(id, v = true) {
+  const d = day(); d.done[id] = v;
+  if (v && !d.startedAt) d.startedAt = Date.now();
+  if (v && STEPS.every(s => d.done[s.id]) && !d.finishedAt) d.finishedAt = Date.now();
+  saveDay();
+  if (v) { const nxt = STEPS.find(s => !d.done[s.id]); openStep = nxt ? nxt.id : ''; render(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+  else refreshStep(id);
+}
+function doneBtn(id, d, label = 'Mark block done') {
+  return d.done[id] ? `<div class="row"><span class="chip good">Done</span><button class="btn ghost small" data-undone="${id}">Reopen</button></div>`
+    : `<div class="row"><button class="btn primary" data-done="${id}">${label}</button></div>`;
+}
+function bindDone(root) {
+  $$('[data-done]', root).forEach(b => b.onclick = () => markDone(b.dataset.done, true));
+  $$('[data-undone]', root).forEach(b => b.onclick = () => markDone(b.dataset.undone, false));
+}
+
+/* session clock */
+let clockTick = null;
+function clockInner(d) {
+  const started = d.startedAt;
+  if (!started) return `<div><div class="label">Session clock</div><span class="num">0:00</span></div><button class="btn primary" id="startSession">Start routine</button>`;
+  const end = d.finishedAt || Date.now();
+  const el = end - started;
+  let t = 0, cur = 'Over time';
+  for (const s of STEPS) { t += s.mins(); if (el < t * 60000) { cur = s.name; break; } }
+  if (d.finishedAt) cur = 'Finished';
+  return `<div><div class="label">${esc(cur)}</div><span class="num" id="clockNum">${fmtElapsed(el)}</span><span class="muted"> / ${t || 30}:00</span></div>`;
+}
+function bindClock() {
+  clearInterval(clockTick);
+  const b = $('#startSession');
+  if (b) b.onclick = () => { const d = day(); d.startedAt = Date.now(); saveDay(); $('#clock').innerHTML = clockInner(d); bindClock(); };
+  const d = day();
+  if (d.startedAt && !d.finishedAt) clockTick = setInterval(() => { const c = $('#clock'); if (!c || tab !== 'today') return clearInterval(clockTick); c.innerHTML = clockInner(day()); }, 1000);
+}
+function ensureStarted() { const d = day(); if (!d.startedAt) { d.startedAt = Date.now(); saveDay(); const c = $('#clock'); if (c) { c.innerHTML = clockInner(d); bindClock(); } } }
+
+/* ---------- cube ---------- */
+const cube = { phase: 'idle', start: 0, raf: 0, holdTimer: 0, scramble: '' };
+function genScramble(len = 20) {
+  const faces = ['U', 'D', 'L', 'R', 'F', 'B'], axis = {U: 0, D: 0, L: 1, R: 1, F: 2, B: 2}, mods = ['', "'", '2'];
+  const out = []; let last = null, prev = null;
+  while (out.length < len) {
+    const f = pick(faces);
+    if (f === last) continue;
+    if (prev && axis[f] === axis[last] && axis[f] === axis[prev]) continue;
+    out.push(f + pick(mods)); prev = last; last = f;
+  }
+  return out.join(' ');
+}
+function cubeStats(solves) {
+  if (!solves.length) return {best: null, mean: null};
+  return {best: Math.min(...solves), mean: solves.reduce((a, b) => a + b, 0) / solves.length};
+}
+function cubeBody(d) {
+  if (!cube.scramble) cube.scramble = genScramble();
+  const st = cubeStats(d.cube.solves);
+  const allBest = Math.min(...realDays().flatMap(x => x.cube?.solves || []), Infinity);
+  return `
+    <p class="muted" style="margin:0">${S.settings.cubeTarget} solves to wake up your hands. Hold <span class="mono">Space</span> (or press and hold the pad) until it turns green, release to start, press any key or tap to stop.</p>
+    <div><div class="label">Scramble</div><div class="row" style="gap:8px;margin-top:4px"><div class="scramble" style="flex:1" id="scramble">${esc(cube.scramble)}</div><button class="btn small" id="newScramble">New scramble</button></div></div>
+    <button class="pad" id="pad" data-p="${cube.phase}" aria-label="Cube timer"><span class="num" id="padNum">${cube.phase === 'idle' && d.cube.solves.length ? fmtMs(d.cube.solves[d.cube.solves.length - 1]) : '0.00'}</span></button>
+    <div class="stats">
+      <div class="stat"><div class="label">Best today</div><span class="num">${fmtMs(st.best)}</span></div>
+      <div class="stat"><div class="label">Mean today</div><span class="num">${fmtMs(st.mean)}</span></div>
+      <div class="stat"><div class="label">All-time best</div><span class="num">${fmtMs(isFinite(allBest) ? allBest : null)}</span></div>
+    </div>
+    ${d.cube.solves.length ? `<div class="solves">${d.cube.solves.map((s, i) => `<span class="solve">${fmtMs(s)}<button data-del="${i}" aria-label="Delete solve ${i + 1}">×</button></span>`).join('')}</div>` : ''}
+    ${doneBtn('cube', d)}`;
+}
+function cubeDown() {
+  if (cube.phase === 'running') { cubeStop(); return; }
+  if (cube.phase !== 'idle') return;
+  cube.phase = 'holding'; setPad();
+  cube.holdTimer = setTimeout(() => { if (cube.phase === 'holding') { cube.phase = 'ready'; setPad(); } }, 350);
+}
+function cubeUp() {
+  clearTimeout(cube.holdTimer);
+  if (cube.phase === 'holding') { cube.phase = 'idle'; setPad(); return; }
+  if (cube.phase === 'ready') {
+    ensureStarted();
+    cube.phase = 'running'; cube.start = performance.now(); setPad();
+    const loop = () => { if (cube.phase !== 'running') return; const n = $('#padNum'); if (n) n.textContent = fmtMs(performance.now() - cube.start); cube.raf = requestAnimationFrame(loop); };
+    loop();
+  }
+}
+function cubeStop() {
+  const ms = Math.round(performance.now() - cube.start);
+  cancelAnimationFrame(cube.raf);
+  cube.phase = 'idle'; cube.scramble = genScramble();
+  const d = day(); d.cube.solves.push(ms);
+  if (d.cube.solves.length >= S.settings.cubeTarget && !d.done.cube) { d.done.cube = true; }
+  saveDay(); refreshStep('cube');
+  cube.justStopped = performance.now();
+}
+function setPad() { const p = $('#pad'); if (p) p.dataset.p = cube.phase; if (cube.phase === 'holding' || cube.phase === 'ready') { const n = $('#padNum'); if (n) n.textContent = '0.00'; } }
+function bindCube(d) {
+  const pad = $('#pad');
+  pad.addEventListener('pointerdown', e => { e.preventDefault(); cubeDown(); });
+  pad.addEventListener('pointerup', e => { e.preventDefault(); cubeUp(); });
+  pad.addEventListener('pointerleave', () => { if (cube.phase === 'holding' || cube.phase === 'ready') { clearTimeout(cube.holdTimer); cube.phase = 'idle'; setPad(); } });
+  pad.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') e.preventDefault(); });
+  $('#newScramble').onclick = () => { cube.scramble = genScramble(); $('#scramble').textContent = cube.scramble; };
+  $$('[data-del]').forEach(b => b.onclick = () => { const dd = day(); dd.cube.solves.splice(+b.dataset.del, 1); saveDay(); refreshStep('cube'); });
+  bindDone($('#body-cube'));
+}
+document.addEventListener('keydown', e => {
+  if (tab !== 'today' || openStep !== 'cube') return;
+  if (cube.phase === 'running') { e.preventDefault(); cubeStop(); return; }
+  if (e.key !== ' ' || e.repeat) return;
+  if (isTyping() && document.activeElement.id !== 'pad') return;
+  e.preventDefault(); cubeDown();
+});
+document.addEventListener('keyup', e => {
+  if (tab !== 'today' || openStep !== 'cube' || e.key !== ' ') return;
+  if (isTyping() && document.activeElement.id !== 'pad') return;
+  e.preventDefault(); cubeUp();
+});
+
+/* ---------- arithmetic sprint ---------- */
+const sprint = { running: false, endAt: 0, score: 0, cur: null, t0: 0, log: [], raf: 0, last: null };
+function genProblem() {
+  const c = S.settings.arith;
+  const ops = Object.keys(c.ops).filter(k => c.ops[k]);
+  const op = ops.length ? pick(ops) : 'add';
+  const R = r => rnd(Math.min(r[0], r[1]), Math.max(r[0], r[1]));
+  let a, b;
+  if (op === 'add') { a = R(c.addA); b = R(c.addB); return {text: `${a} + ${b}`, ans: a + b, op}; }
+  if (op === 'sub') { a = R(c.addA); b = R(c.addB); return {text: `${a + b} − ${b}`, ans: a, op}; }
+  if (op === 'mul') { a = R(c.mulA); b = R(c.mulB); return {text: `${a} × ${b}`, ans: a * b, op}; }
+  a = R(c.mulA); b = R(c.mulB); if (a === 0) a = 1;
+  return {text: `${a * b} ÷ ${a}`, ans: b, op};
+}
+function arithBody(d) {
+  const c = S.settings.arith;
+  const allScores = realDays().flatMap(x => (x.arith?.rounds || []).filter(r => r.duration === c.duration).map(r => r.score));
+  const best = allScores.length ? Math.max(...allScores) : null;
+  const n = d.arith.rounds.length;
+  const opsTxt = [c.ops.add && '+', c.ops.sub && '−', c.ops.mul && '×', c.ops.div && '÷'].filter(Boolean).join(' ');
+  if (sprint.running) return `
+    <div class="sprint" id="sprint">
+      <div class="sprint-top"><span>Score <b id="spScore">${sprint.score}</b></span><span id="spTime">${fmtClock(sprint.endAt - performance.now())}</span></div>
+      <div class="bar"><i id="spBar"></i></div>
+      <div class="problem" id="spProblem">${esc(sprint.cur.text)}</div>
+      <input class="answer" id="spInput" type="text" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Answer">
+      <div class="muted" style="text-align:center;font-size:.85rem">Correct answers advance on their own. Press Esc to quit the round.</div>
+    </div>`;
+  let result = '';
+  if (sprint.last) {
+    const L = sprint.last;
+    const slow = [...L.log].sort((a, b) => b.ms - a.ms).slice(0, 6);
+    result = `<div class="sprint"><div class="row" style="justify-content:space-between"><div><div class="label">Round ${L.idx} result</div><span class="num" style="font-size:2rem;font-weight:600">${L.score}</span> <span class="muted">${L.score === best && L.score > 0 ? '· new best' : best != null ? `· best ${best}` : ''}</span></div>
+      <div class="muted mono">${L.score ? (L.duration / L.score).toFixed(1) + ' s per problem' : ''}</div></div>
+      ${slow.length ? `<div><div class="label">Slowest problems</div><div class="slow" style="margin-top:6px">${slow.map(s => `<div><span>${esc(s.text)} = ${s.ans}</span><span class="muted">${(s.ms / 1000).toFixed(1)}s</span></div>`).join('')}</div></div>` : ''}</div>`;
+  }
+  return `
+    <p class="muted" style="margin:0">${c.rounds} rounds of ${c.duration} s. Operations ${esc(opsTxt)}; addition ${c.addA[0]}–${c.addA[1]} plus ${c.addB[0]}–${c.addB[1]}, multiplication ${c.mulA[0]}–${c.mulA[1]} × ${c.mulB[0]}–${c.mulB[1]}. Change these in Setup.</p>
+    <div class="stats">
+      <div class="stat"><div class="label">Rounds today</div><span class="num">${n} / ${c.rounds}</span></div>
+      <div class="stat"><div class="label">Today</div><span class="num">${n ? d.arith.rounds.map(r => r.score).join(' · ') : '–'}</span></div>
+      <div class="stat"><div class="label">Best at ${c.duration}s</div><span class="num">${best ?? '–'}</span></div>
+    </div>
+    ${result}
+    <div class="row"><button class="btn primary" id="spStart">Start round ${n + 1}</button>${doneBtn('arith', d).replace('<div class="row">', '').replace(/<\/div>$/, '')}</div>`;
+}
+function bindArith(d) {
+  const st = $('#spStart'); if (st) st.onclick = startSprint;
+  bindDone($('#body-arith'));
+  if (sprint.running) {
+    const inp = $('#spInput'); inp.focus();
+    inp.addEventListener('input', () => {
+      const v = inp.value.trim();
+      if (v !== '' && Number(v) === sprint.cur.ans) {
+        const now = performance.now();
+        sprint.log.push({text: sprint.cur.text, ans: sprint.cur.ans, ms: now - sprint.t0});
+        sprint.score++; sprint.cur = genProblem(); sprint.t0 = now;
+        inp.value = ''; $('#spScore').textContent = sprint.score; $('#spProblem').textContent = sprint.cur.text;
+      }
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Escape') { endSprint(true); } });
+    const total = S.settings.arith.duration * 1000;
+    const loop = () => {
+      if (!sprint.running) return;
+      const left = sprint.endAt - performance.now();
+      if (left <= 0) return endSprint(false);
+      const t = $('#spTime'), b = $('#spBar');
+      if (t) t.textContent = fmtClock(left);
+      if (b) b.style.transform = `scaleX(${left / total})`;
+      sprint.raf = requestAnimationFrame(loop);
+    };
+    loop();
+  }
+}
+function startSprint() {
+  ensureStarted();
+  Object.assign(sprint, {running: true, score: 0, cur: genProblem(), t0: performance.now(), log: [], endAt: performance.now() + S.settings.arith.duration * 1000});
+  refreshStep('arith');
+}
+function endSprint(aborted) {
+  cancelAnimationFrame(sprint.raf);
+  sprint.running = false;
+  const d = day();
+  if (!aborted) {
+    beep(660, 0.12, 2);
+    const r = {score: sprint.score, duration: S.settings.arith.duration, at: Date.now(), ops: clone(S.settings.arith.ops)};
+    d.arith.rounds.push(r);
+    sprint.last = {...r, idx: d.arith.rounds.length, log: sprint.log};
+    if (d.arith.rounds.length >= S.settings.arith.rounds) d.done.arith = true;
+    saveDay();
+  } else sprint.last = null;
+  refreshStep('arith');
+}
+
+/* ---------- leetcode ---------- */
+const leetT = { running: false, endAt: 0, left: null, tick: 0, alerted: false };
+function leetBody(d) {
+  const L = d.leet;
+  const total = S.settings.leetMin * 60000;
+  if (leetT.left == null) leetT.left = L.leftMs ?? total;
+  const left = leetT.running ? leetT.endAt - Date.now() : leetT.left;
+  const over = left <= 0;
+  const outcomes = [['solved', 'Solved'], ['hint', 'Solved with a hint'], ['solution', 'Read the solution'], ['open', 'Not finished']];
+  return `
+    <p class="muted" style="margin:0">One problem, ${S.settings.leetMin} minute cap. If you're stuck at the bell, read the solution and write down the key idea in your own words.</p>
+    <div class="timer ${over ? 'over' : ''}" id="leetTimer"><span class="num" id="leetNum">${fmtClock(left)}</span>
+      <button class="btn ${leetT.running ? '' : 'primary'}" id="leetGo">${leetT.running ? 'Pause' : (left < total && left > 0 ? 'Resume' : over ? 'Restart' : 'Start timer')}</button>
+      <button class="btn ghost small" id="leetReset">Reset</button></div>
+    <div class="note" id="leetBell" ${over ? '' : 'hidden'}>Time's up. Read the solution now and capture the key idea below.</div>
+    <div class="grid2">
+      <label class="field"><span>Problem</span><input type="text" id="leetTitle" value="${esc(L.title)}" placeholder="e.g. 3Sum"></label>
+      <label class="field"><span>Link</span><input type="url" id="leetUrl" value="${esc(L.url)}" placeholder="https://leetcode.com/problems/…"></label>
+    </div>
+    <div class="row">
+      <div class="field"><span>Difficulty</span><div class="seg" id="leetDiff">${['Easy', 'Medium', 'Hard'].map(x => `<button type="button" aria-pressed="${L.difficulty === x}" data-v="${x}">${x}</button>`).join('')}</div></div>
+      <div class="field"><span>Outcome</span><div class="seg" id="leetOut">${outcomes.map(([v, t]) => `<button type="button" aria-pressed="${L.outcome === v}" data-v="${v}">${t}</button>`).join('')}</div></div>
+    </div>
+    <label class="field"><span>Key idea, in one or two sentences</span><textarea id="leetIdea" placeholder="e.g. Sort first, then fix one number and close in with two pointers. Skip duplicates on both ends.">${esc(L.idea)}</textarea></label>
+    ${doneBtn('leet', d)}`;
+}
+function bindLeet(d) {
+  const L = d.leet, total = S.settings.leetMin * 60000;
+  const field = (id, key) => { $(id).addEventListener('input', e => { day().leet[key] = e.target.value; saveDay(); }); };
+  field('#leetTitle', 'title'); field('#leetUrl', 'url'); field('#leetIdea', 'idea');
+  const seg = (id, key) => $$(id + ' button').forEach(b => b.onclick = () => { day().leet[key] = b.dataset.v; saveDay(); $$(id + ' button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  seg('#leetDiff', 'difficulty'); seg('#leetOut', 'outcome');
+  $('#leetGo').onclick = () => {
+    if (leetT.running) { leetT.left = leetT.endAt - Date.now(); leetT.running = false; day().leet.leftMs = Math.max(0, leetT.left); saveDay(); }
+    else { ensureStarted(); if (leetT.left <= 0) leetT.left = total; leetT.endAt = Date.now() + leetT.left; leetT.running = true; leetT.alerted = false; }
+    refreshLeetTimer();
+  };
+  $('#leetReset').onclick = () => { leetT.running = false; leetT.left = total; day().leet.leftMs = total; saveDay(); refreshLeetTimer(); };
+  bindDone($('#body-leet'));
+  refreshLeetTimer();
+}
+function refreshLeetTimer() {
+  clearInterval(leetT.tick);
+  const total = S.settings.leetMin * 60000;
+  const paint = () => {
+    const left = leetT.running ? leetT.endAt - Date.now() : leetT.left;
+    const n = $('#leetNum'); if (!n) return;
+    n.textContent = fmtClock(left);
+    const over = left <= 0;
+    $('#leetTimer').classList.toggle('over', over);
+    $('#leetBell').hidden = !over;
+    const g = $('#leetGo');
+    g.textContent = leetT.running ? 'Pause' : (over ? 'Restart' : left < total ? 'Resume' : 'Start timer');
+    g.classList.toggle('primary', !leetT.running);
+    if (over && leetT.running) { leetT.running = false; leetT.left = 0; day().leet.leftMs = 0; saveDay(); if (!leetT.alerted) { leetT.alerted = true; beep(880, 0.25, 3); } g.textContent = 'Restart'; g.classList.add('primary'); }
+  };
+  paint();
+  if (leetT.running) leetT.tick = setInterval(paint, 250);
+}
+
+/* ---------- drill ---------- */
+const drillT = { running: false, endAt: 0, left: null, tick: 0 };
+function missedProblems() {
+  return realDays().filter(x => x.leet && x.leet.title && x.leet.outcome && x.leet.outcome !== 'solved' && x.date !== todayKey()).reverse();
+}
+function drillBody(d) {
+  const key = d.drill.type || ROTATION[new Date().getDay()];
+  const D = DRILLS[key];
+  let prompt = d.drill.prompt;
+  if (!prompt) {
+    if (key === 'redo') { const m = missedProblems()[0]; prompt = m ? `${m.leet.title}${m.leet.difficulty ? ' (' + m.leet.difficulty + ')' : ''} from ${shortDate(m.date)}` : 'No missed problems logged yet. Pick a problem you solved slowly last week and redo it from scratch.'; }
+    else prompt = pick(D.prompts);
+    d.drill.prompt = prompt; d.drill.type = key;
+  }
+  const total = S.settings.drillMin * 60000;
+  if (drillT.left == null) drillT.left = total;
+  const left = drillT.running ? drillT.endAt - Date.now() : drillT.left;
+  const types = Object.keys(DRILLS);
+  return `
+    <div class="row" style="justify-content:space-between"><div class="label">Today: ${esc(D.name)}</div>
+      <label class="row" style="gap:6px"><span class="muted" style="font-size:.85rem">Switch drill</span><select id="drillType" style="width:auto">${types.map(t => `<option value="${t}" ${t === key ? 'selected' : ''}>${esc(DRILLS[t].name)}</option>`).join('')}</select></label></div>
+    <div class="prompt">${esc(prompt)}<small>${esc(D.how)}</small></div>
+    <div class="row">${key === 'redo' ? redoPicker() : `<button class="btn small" id="drillNext">Another prompt</button>`}</div>
+    <div class="timer ${left <= 0 ? 'over' : ''}" id="drillTimer"><span class="num" id="drillNum">${fmtClock(left)}</span>
+      <button class="btn ${drillT.running ? '' : 'primary'}" id="drillGo">${drillT.running ? 'Pause' : 'Start timer'}</button>
+      <button class="btn ghost small" id="drillReset">Reset</button></div>
+    <label class="field"><span>Your work</span><textarea id="drillNotes" style="min-height:180px" placeholder="${key === 'fermi' ? 'Population 330M → … → answer ≈ …' : key === 'design' ? 'Writes/s: … Reads/s: … Storage/yr: … First bottleneck: …' : 'Write it out here.'}">${esc(d.drill.notes)}</textarea></label>
+    ${doneBtn('drill', d)}`;
+}
+function redoPicker() {
+  const m = missedProblems();
+  if (!m.length) return '<span class="muted" style="font-size:.85rem">Problems you mark as "hint", "read the solution" or "not finished" show up here.</span>';
+  return `<select id="redoPick" style="width:auto;max-width:100%"><option value="">Pick a missed problem…</option>${m.slice(0, 20).map(x => `<option value="${esc(x.date)}">${esc(x.leet.title)} · ${esc(shortDate(x.date))}</option>`).join('')}</select>`;
+}
+function bindDrill(d) {
+  $('#drillType').onchange = e => { const dd = day(); dd.drill.type = e.target.value; dd.drill.prompt = ''; saveDay(); refreshStep('drill'); };
+  const nx = $('#drillNext');
+  if (nx) nx.onclick = () => { const dd = day(); const P = DRILLS[dd.drill.type].prompts; let p; do { p = pick(P); } while (P.length > 1 && p === dd.drill.prompt); dd.drill.prompt = p; saveDay(); refreshStep('drill'); };
+  const rp = $('#redoPick');
+  if (rp) rp.onchange = () => { const x = S.days[rp.value]; if (!x) return; const dd = day(); dd.drill.prompt = `${x.leet.title}${x.leet.difficulty ? ' (' + x.leet.difficulty + ')' : ''} from ${shortDate(x.date)}${x.leet.url ? ' · ' + x.leet.url : ''}`; saveDay(); refreshStep('drill'); };
+  $('#drillNotes').addEventListener('input', e => { day().drill.notes = e.target.value; saveDay(); });
+  const total = S.settings.drillMin * 60000;
+  const paint = () => {
+    const left = drillT.running ? drillT.endAt - Date.now() : drillT.left;
+    const n = $('#drillNum'); if (!n) return;
+    n.textContent = fmtClock(left);
+    $('#drillTimer').classList.toggle('over', left <= 0);
+    if (left <= 0 && drillT.running) { drillT.running = false; drillT.left = 0; beep(880, 0.25, 3); }
+    const g = $('#drillGo'); g.textContent = drillT.running ? 'Pause' : (left <= 0 ? 'Restart' : left < total ? 'Resume' : 'Start timer'); g.classList.toggle('primary', !drillT.running);
+  };
+  $('#drillGo').onclick = () => {
+    if (drillT.running) { drillT.left = drillT.endAt - Date.now(); drillT.running = false; }
+    else { ensureStarted(); if (drillT.left <= 0) drillT.left = total; drillT.endAt = Date.now() + drillT.left; drillT.running = true; }
+    clearInterval(drillT.tick); if (drillT.running) drillT.tick = setInterval(paint, 250); paint();
+  };
+  $('#drillReset').onclick = () => { drillT.running = false; drillT.left = total; clearInterval(drillT.tick); paint(); };
+  clearInterval(drillT.tick); if (drillT.running) drillT.tick = setInterval(paint, 250);
+  paint();
+  bindDone($('#body-drill'));
+}
+
+/* ---------- PROGRESS ---------- */
+function lineChart(pts, opts = {}) {
+  if (pts.length < 2) return `<div class="empty">${pts.length ? 'One day logged so far. The chart appears after your second day.' : esc(opts.empty || 'No data yet.')}</div>`;
+  const W = 640, H = 180, L = 44, R = 14, T = 14, B = 26;
+  const ys = pts.map(p => p.y);
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const padv = (hi - lo) * 0.1; lo -= padv; hi += padv;
+  if (opts.zero && lo < 0) lo = 0;
+  const x = i => L + (W - L - R) * (i / (pts.length - 1));
+  const y = v => opts.invert ? T + (H - T - B) * ((v - lo) / (hi - lo)) : H - B - (H - T - B) * ((v - lo) / (hi - lo));
+  const ticks = [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1];
+  const fmt = opts.fmt || (v => Math.round(v));
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ');
+  const base = opts.invert ? T : H - B;
+  const area = `${line} L${x(pts.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`;
+  const last = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || 'Chart')}">
+    ${ticks.map(t => `<line x1="${L}" x2="${W - R}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" style="stroke:var(--line)" stroke-width="1"/><text x="${L - 6}" y="${(y(t) + 4).toFixed(1)}" text-anchor="end">${esc(fmt(t))}</text>`).join('')}
+    <path d="${area}" style="fill:var(--accent-soft)"/>
+    <path d="${line}" fill="none" style="stroke:var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="${i === pts.length - 1 ? 4.5 : 2.5}" style="fill:${i === pts.length - 1 ? 'var(--accent)' : 'var(--surface)'};stroke:var(--accent)" stroke-width="1.5"><title>${esc(p.label)}: ${esc(fmt(p.y))}</title></circle>`).join('')}
+    <text x="${x(0)}" y="${H - 6}" text-anchor="start">${esc(pts[0].label)}</text>
+    <text x="${x(pts.length - 1)}" y="${H - 6}" text-anchor="end">${esc(last.label)} · ${esc(fmt(last.y))}</text>
+  </svg>`;
+}
+function streak() {
+  const active = k => { const d = S.days[k]; return d && d.done && STEPS.some(s => d.done[s.id]); };
+  const cur = new Date(); let n = 0;
+  if (!active(keyOf(cur))) cur.setDate(cur.getDate() - 1);
+  while (active(keyOf(cur))) { n++; cur.setDate(cur.getDate() - 1); }
+  return n;
+}
+function renderProgress(app) {
+  const days = realDays();
+  const dur = S.settings.arith.duration;
+  const arithPts = days.filter(d => d.arith?.rounds?.some(r => r.duration === dur)).slice(-30).map(d => ({label: shortDate(d.date), y: Math.max(...d.arith.rounds.filter(r => r.duration === dur).map(r => r.score))}));
+  const cubePts = days.filter(d => d.cube?.solves?.length).slice(-30).map(d => ({label: shortDate(d.date), y: Math.min(...d.cube.solves) / 1000}));
+  const nbPts = days.filter(d => d.nback?.rounds?.length).slice(-30).map(d => ({label: shortDate(d.date), y: Math.max(...d.nback.rounds.map(r => r.n))}));
+  const allArith = days.flatMap(d => (d.arith?.rounds || []).filter(r => r.duration === dur).map(r => r.score));
+  const last7 = days.filter(d => (Date.now() - new Date(d.date + 'T12:00').getTime()) < 7 * 864e5);
+  const avg7 = (() => { const s = last7.flatMap(d => (d.arith?.rounds || []).filter(r => r.duration === dur).map(r => r.score)); return s.length ? (s.reduce((a, b) => a + b, 0) / s.length).toFixed(1) : '–'; })();
+  const allSolves = days.flatMap(d => d.cube?.solves || []);
+  const leetDays = days.filter(d => d.leet && d.leet.title).reverse();
+  const solved = leetDays.filter(d => d.leet.outcome === 'solved').length;
+  const drillDays = days.filter(d => d.drill && d.drill.notes).reverse();
+
+  // heatmap: 12 weeks ending this week (Sunday-start columns)
+  const end = new Date(); const start = new Date(); start.setDate(end.getDate() - end.getDay() - 7 * 11);
+  const cells = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const k = keyOf(d), x = S.days[k];
+    const l = x && x.done ? STEPS.filter(s => x.done[s.id]).length : 0;
+    cells.push(`<i data-l="${l}" ${k === todayKey() ? 'data-today' : ''} title="${esc(shortDate(k))}: ${l} of 4 blocks"></i>`);
+  }
+
+  app.innerHTML = `
+    <div class="today-head"><div><div class="label">History</div><h1>Progress</h1></div></div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Streak</div><span class="num">${streak()}</span><span class="muted">days in a row</span></div>
+      <div class="tile"><div class="label">Sprint best (${dur}s)</div><span class="num">${allArith.length ? Math.max(...allArith) : '–'}</span><span class="muted">7-day avg ${avg7}</span></div>
+      <div class="tile"><div class="label">Cube best</div><span class="num">${allSolves.length ? fmtMs(Math.min(...allSolves)) : '–'}</span><span class="muted">${allSolves.length} solves logged</span></div>
+      <div class="tile"><div class="label">LeetCode</div><span class="num">${leetDays.length}</span><span class="muted">${solved} solved clean</span></div>
+    </div>
+    <div class="panel"><h2>Consistency</h2><div class="muted">Last 12 weeks. Darker squares mean more blocks finished that day.</div><div class="heat">${cells.join('')}</div></div>
+    <div class="panel"><h2>Arithmetic sprint</h2><div class="muted">Best round per day at ${dur} s.</div>${lineChart(arithPts, {label: 'Sprint score by day', zero: true, empty: 'Finish a sprint round and your daily best shows up here.'})}</div>
+    <div class="panel"><h2>Cube</h2><div class="muted">Best solve per day, in seconds. Lower is better, so the chart is flipped.</div>${lineChart(cubePts, {label: 'Best cube solve by day', invert: true, fmt: v => v.toFixed(1), empty: 'Time a solve and it shows up here.'})}</div>
+    <div class="panel"><h2>LeetCode log</h2>${leetDays.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Problem</th><th>Level</th><th>Outcome</th><th>Key idea</th></tr></thead><tbody>
+      ${leetDays.map(d => `<tr><td class="num">${esc(shortDate(d.date))}</td><td>${d.leet.url && /^https:\/\//.test(d.leet.url) ? `<a href="${esc(d.leet.url)}" target="_blank" rel="noopener">${esc(d.leet.title)}</a>` : esc(d.leet.title)}</td><td>${esc(d.leet.difficulty || '')}</td><td>${outcomeChip(d.leet.outcome)}</td><td style="min-width:220px">${esc(d.leet.idea || '')}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty">Problems you log in the LeetCode block are listed here with their key idea.</div>'}</div>
+    <div class="panel"><h2>Drill journal</h2>${drillDays.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Drill</th><th>Prompt</th><th>Notes</th></tr></thead><tbody>
+      ${drillDays.slice(0, 40).map(d => `<tr><td class="num">${esc(shortDate(d.date))}</td><td>${esc(DRILLS[d.drill.type]?.name || '')}</td><td style="min-width:180px">${esc(d.drill.prompt || '')}</td><td style="min-width:240px;white-space:pre-wrap">${esc((d.drill.notes || '').slice(0, 400))}${(d.drill.notes || '').length > 400 ? '…' : ''}</td></tr>`).join('')}
+      </tbody></table></div>` : '<div class="empty">Notes from your daily drill are kept here so you can reread them.</div>'}</div>
+    <div class="panel"><h2>Dual n-back</h2><div class="muted">Highest level reached per day.</div>${lineChart(nbPts, {label: 'N-back level by day', fmt: v => v.toFixed(0), empty: 'Optional. Rounds you play on the N-back tab show up here.'})}</div>`;
+}
+function outcomeChip(o) {
+  return ({solved: '<span class="chip good">Solved</span>', hint: '<span class="chip acc">With hint</span>', solution: '<span class="chip warm">Read solution</span>', open: '<span class="chip warm">Not finished</span>'})[o] || '';
+}
+
+/* ---------- N-BACK ---------- */
+const LETTERS = ['C', 'H', 'K', 'L', 'Q', 'R', 'S', 'T'];
+const POS = [0, 1, 2, 3, 5, 6, 7, 8];
+const nb = { running: false, n: 2, trials: [], i: -1, resp: {pos: false, aud: false}, timer: 0, result: null };
+const canSpeak = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+function genTrials(n, count) {
+  const t = [];
+  for (let i = 0; i < count; i++) {
+    let p = pick(POS), a = pick(LETTERS);
+    if (i >= n) {
+      const prev = t[i - n];
+      if (Math.random() < 0.3) p = prev.p; else while (p === prev.p) p = pick(POS);
+      if (Math.random() < 0.3) a = prev.a; else while (a === prev.a) a = pick(LETTERS);
+    }
+    t.push({p, a, rp: false, ra: false});
+  }
+  return t;
+}
+function renderNback(app) {
+  const set = S.settings.nback;
+  const n = nb.running ? nb.n : set.n;
+  const r = nb.result;
+  app.innerHTML = `
+    <div class="today-head"><div><div class="label">Optional</div><h1>Dual n-back</h1></div>
+      <div class="row">${nb.running ? `<span class="chip acc mono">Trial ${Math.max(0, nb.i) + 1} / ${nb.trials.length}</span><button class="btn" id="nbStop">Stop</button>` : `
+        <label class="row" style="gap:6px"><span class="muted">Level</span><select id="nbN" style="width:auto">${[1, 2, 3, 4, 5, 6, 7, 8].map(x => `<option ${x === n ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+        <button class="btn primary" id="nbStart">Start ${n}-back</button>`}</div></div>
+    <div class="panel" style="display:flex;flex-direction:column;gap:16px">
+      <div class="nb-board" id="nbBoard">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<i class="${i === 4 ? 'center' : ''}" data-c="${i}"></i>`).join('')}</div>
+      <div class="nb-keys"><button class="btn" id="nbPos">Position match <span class="mono muted">A</span></button><button class="btn" id="nbAud">${set.speak && canSpeak ? 'Sound' : 'Letter'} match <span class="mono muted">L</span></button></div>
+      ${r ? `<div class="stats" style="justify-content:center">
+        <div class="stat"><div class="label">Position</div><span class="num">${r.posAcc}%</span><div class="muted" style="font-size:.8rem">${r.pos.h} hits · ${r.pos.m} missed · ${r.pos.f} false</div></div>
+        <div class="stat"><div class="label">${set.speak && canSpeak ? 'Sound' : 'Letter'}</div><span class="num">${r.audAcc}%</span><div class="muted" style="font-size:.8rem">${r.aud.h} hits · ${r.aud.m} missed · ${r.aud.f} false</div></div>
+        <div class="stat"><div class="label">Next level</div><span class="num">${set.n}</span><div class="muted" style="font-size:.8rem">${r.move}</div></div></div>` : ''}
+      <div class="row" style="justify-content:center"><label class="row" style="gap:6px"><input type="checkbox" id="nbSpeak" ${set.speak && canSpeak ? 'checked' : ''} ${canSpeak ? '' : 'disabled'}> <span>Speak letters out loud${canSpeak ? '' : ' (not supported here, letters are shown instead)'}</span></label></div>
+    </div>
+    <div class="panel prose">
+      <h2>Is it worth your minutes?</h2>
+      <p>Press <b>A</b> when the square is in the same spot as ${n} steps ago, and <b>L</b> when the letter is the same as ${n} steps ago. Each round is ${20 + n} trials, about a minute. Score 80% on both and you move up a level; under 50% on either and you move down.</p>
+      <p class="muted">The research says it reliably improves working memory on tasks that look like n-back, with small and uneven gains on other working-memory tests and no dependable gain in reasoning or cognitive flexibility. Treat it as an optional extra, not part of the 30 minutes.</p>
+    </div>`;
+  const st = $('#nbStart'); if (st) st.onclick = startNback;
+  const sp = $('#nbStop'); if (sp) sp.onclick = () => endNback(true);
+  const sel = $('#nbN'); if (sel) sel.onchange = () => { S.settings.nback.n = +sel.value; saveSettings(); renderNback(app); };
+  const spk = $('#nbSpeak'); if (spk) spk.onchange = () => { S.settings.nback.speak = spk.checked; saveSettings(); renderNback(app); };
+  $('#nbPos').onclick = () => nbPress('pos');
+  $('#nbAud').onclick = () => nbPress('aud');
+}
+function nbPress(ch) {
+  if (!nb.running || nb.i < 0) return;
+  const t = nb.trials[nb.i];
+  if (ch === 'pos') t.rp = true; else t.ra = true;
+  const b = $(ch === 'pos' ? '#nbPos' : '#nbAud'); if (b) b.classList.add('hit');
+}
+document.addEventListener('keydown', e => {
+  if (tab !== 'nback' || !nb.running || isTyping()) return;
+  const k = e.key.toLowerCase();
+  if (k === 'a') { e.preventDefault(); nbPress('pos'); }
+  if (k === 'l') { e.preventDefault(); nbPress('aud'); }
+});
+function startNback() {
+  nb.n = S.settings.nback.n; nb.trials = genTrials(nb.n, 20 + nb.n); nb.i = -1; nb.running = true; nb.result = null;
+  renderNback($('#app'));
+  const speak = S.settings.nback.speak && canSpeak;
+  const step = () => {
+    if (!nb.running) return;
+    nb.i++;
+    if (nb.i >= nb.trials.length) return endNback(false);
+    const t = nb.trials[nb.i];
+    const chip = $('.chip.acc'); if (chip) chip.textContent = `Trial ${nb.i + 1} / ${nb.trials.length}`;
+    $$('#nbBoard i').forEach(c => { c.classList.remove('on'); c.textContent = ''; });
+    $$('.nb-keys .btn').forEach(b => b.classList.remove('hit'));
+    const cell = $(`#nbBoard i[data-c="${t.p}"]`); if (cell) { cell.classList.add('on'); if (!speak) cell.textContent = t.a; }
+    if (speak) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t.a); u.rate = 1.1; speechSynthesis.speak(u); } catch (e) {} }
+    setTimeout(() => { const c = $(`#nbBoard i[data-c="${t.p}"]`); if (c) { c.classList.remove('on'); c.textContent = ''; } }, 600);
+    nb.timer = setTimeout(step, 2500);
+  };
+  nb.timer = setTimeout(step, 600);
+}
+function endNback(aborted) {
+  clearTimeout(nb.timer); nb.running = false;
+  if (aborted) { nb.result = null; renderNback($('#app')); return; }
+  const sc = (match, resp) => { let h = 0, m = 0, f = 0; nb.trials.forEach((t, i) => { if (i < nb.n) { if (resp(t)) f++; return; } const isM = match(t, nb.trials[i - nb.n]); if (isM && resp(t)) h++; else if (isM) m++; else if (resp(t)) f++; }); return {h, m, f, acc: Math.round(100 * h / Math.max(1, h + m + f))}; };
+  const pos = sc((t, p) => t.p === p.p, t => t.rp), aud = sc((t, p) => t.a === p.a, t => t.ra);
+  let move = 'Stay at this level';
+  if (pos.acc >= 80 && aud.acc >= 80) { S.settings.nback.n = Math.min(9, nb.n + 1); move = 'Moved up a level'; }
+  else if (pos.acc < 50 || aud.acc < 50) { S.settings.nback.n = Math.max(1, nb.n - 1); move = nb.n > 1 ? 'Moved down a level' : move; }
+  saveSettings();
+  const d = day(); d.nback.rounds.push({n: nb.n, posAcc: pos.acc, audAcc: aud.acc, at: Date.now()}); saveDay();
+  nb.result = {pos, aud, posAcc: pos.acc, audAcc: aud.acc, move};
+  beep(660, 0.12, 2);
+  renderNback($('#app'));
+}
+
+/* ---------- SETUP ---------- */
+function renderSetup(app) {
+  const c = S.settings.arith;
+  const rng = (id, label, v) => `<div class="field"><span>${label}</span><div class="row" style="gap:6px;flex-wrap:nowrap"><input type="number" id="${id}0" value="${v[0]}" min="0" max="9999"><span class="muted">to</span><input type="number" id="${id}1" value="${v[1]}" min="0" max="9999"></div></div>`;
+  app.innerHTML = `
+    <div class="today-head"><div><div class="label">Setup</div><h1>Tune the routine</h1></div></div>
+    <div class="panel" style="display:flex;flex-direction:column;gap:14px">
+      <h2>Arithmetic sprint</h2>
+      <div class="row">${[['add', 'Addition'], ['sub', 'Subtraction'], ['mul', 'Multiplication'], ['div', 'Division']].map(([k, t]) => `<label class="row" style="gap:6px"><input type="checkbox" id="op-${k}" ${c.ops[k] ? 'checked' : ''}> ${t}</label>`).join('')}</div>
+      <div class="grid2">${rng('addA', 'Addition, first number', c.addA)}${rng('addB', 'Addition, second number', c.addB)}${rng('mulA', 'Multiplication, first number', c.mulA)}${rng('mulB', 'Multiplication, second number', c.mulB)}</div>
+      <p class="muted" style="margin:0;font-size:.88rem">Subtraction uses the addition ranges in reverse, and division uses the multiplication ranges in reverse, so every answer is a whole number.</p>
+      <div class="grid2">
+        <label class="field"><span>Round length</span><select id="dur">${[30, 60, 90, 120, 180, 300].map(s => `<option value="${s}" ${s === c.duration ? 'selected' : ''}>${s} seconds</option>`).join('')}</select></label>
+        <label class="field"><span>Rounds per morning</span><select id="rounds">${[1, 2, 3, 4].map(s => `<option ${s === c.rounds ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+      </div>
+    </div>
+    <div class="panel" style="display:flex;flex-direction:column;gap:14px">
+      <h2>Blocks</h2>
+      <div class="grid2">
+        <label class="field"><span>Cube solves per morning</span><select id="cubeTarget">${[1, 2, 3, 5].map(s => `<option ${s === S.settings.cubeTarget ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        <label class="field"><span>LeetCode cap (minutes)</span><select id="leetMin">${[10, 15, 20, 25, 30].map(s => `<option ${s === S.settings.leetMin ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        <label class="field"><span>Drill length (minutes)</span><select id="drillMin">${[5, 7, 10, 15].map(s => `<option ${s === S.settings.drillMin ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+      </div>
+      <div><div class="label">Drill rotation</div><div class="tablewrap"><table><tbody>${[1, 2, 3, 4, 5, 6, 0].map(i => `<tr><td>${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}</td><td>${esc(DRILLS[ROTATION[i]].name)}</td></tr>`).join('')}</tbody></table></div></div>
+    </div>
+    <p class="muted" style="font-size:.85rem">Changes save as you make them.</p>`;
+  const num = (id, fb) => { const v = parseInt($(id).value, 10); return isFinite(v) ? Math.max(0, Math.min(9999, v)) : fb; };
+  const save = () => {
+    const a = S.settings.arith;
+    ['add', 'sub', 'mul', 'div'].forEach(k => a.ops[k] = $('#op-' + k).checked);
+    if (!Object.values(a.ops).some(Boolean)) { a.ops.add = true; $('#op-add').checked = true; }
+    ['addA', 'addB', 'mulA', 'mulB'].forEach(k => { a[k] = [num('#' + k + '0', a[k][0]), num('#' + k + '1', a[k][1])]; });
+    a.duration = +$('#dur').value; a.rounds = +$('#rounds').value;
+    S.settings.cubeTarget = +$('#cubeTarget').value; S.settings.leetMin = +$('#leetMin').value; S.settings.drillMin = +$('#drillMin').value;
+    leetT.left = null; drillT.left = null;
+    saveSettings();
+  };
+  $$('input,select', app).forEach(el => el.addEventListener('change', save));
+}
+
+/* ---------- boot ---------- */
+window.addEventListener('hashchange', route);
+route();
+initDb();
+})();
+</script>
+
+</body>
+</html>
